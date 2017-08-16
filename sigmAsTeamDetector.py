@@ -42,7 +42,7 @@ PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'impact' : "Impact",
                      'party_pct' : "Party Percent"
                     }
-TOOL_TITLE = "sigmA's Team Detective BETA v3"
+TOOL_TITLE = "sigmA's Team Detector BETA v3"
 
 CSS = """<style type="text/css">
 h1 {
