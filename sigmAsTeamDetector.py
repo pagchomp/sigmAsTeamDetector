@@ -135,7 +135,7 @@ def pull_data(player_id):
     player_web = STRATZ_API + "player/"
     behavior = json.loads(urllib.request.urlopen(player_web +
                                                  player_id +
-                                                 "/behaviorChart").read().decode('utf-8'))
+                                                 "/behaviorChart?take=250").read().decode('utf-8'))
     player = json.loads(urllib.request.urlopen(player_web +
                                                player_id).read().decode('utf-8'))
     player_dict = {'player_name': player['name'],
@@ -155,18 +155,20 @@ def pull_data(player_id):
                    'ranked_pct' : 0,
                    'activity' : "",
                    'impact' : "",
-                   'party_pct' : 0
+                   'party_pct' : 0,
+                   'match_count' : 0
                   }
     try:
+        player_dict['match_count'] = behavior['matchCount']
         player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
                                                                        behavior['coreCount'])) * 100, 0))
         player_dict['cores'] = 100 - player_dict['supports']
         player_dict['recent_mmr_avg'] = int(round(get_mean([k['rank'] for k in behavior['matches']]), 0))
-        player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/behavior['matchCount'], 0))
+        player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
         heroes = behavior['heroes']
         player_dict['unique_heroes'] = len(heroes)
-        player_dict['ranked_pct'] = int(round(behavior['rankedCount']/.25, 0))
-        player_dict['party_pct'] = int(round(behavior['partyCount']/.25, 0))
+        player_dict['ranked_pct'] = int(round((behavior['rankedCount']/player_dict['match_count']) * 100, 0))
+        player_dict['party_pct'] = int(round((behavior['partyCount']/player_dict['match_count']) * 100, 0))
         player_dict['activity'] = ACTIVITY[behavior['activity']]
         if behavior['avgImp'] >= 109:
             player_dict['impact'] = 'High'
@@ -175,7 +177,7 @@ def pull_data(player_id):
         else:
             player_dict['impact'] = 'Medium'
         for curr_hero in heroes:
-            if curr_hero['matchCount'] >= 5:
+            if curr_hero['matchCount'] >= player_dict['match_count']/5:
                 hero_name = HERO_DICT[str(curr_hero['heroId'])]
                 hero_matches = curr_hero['matchCount']
                 hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
@@ -229,16 +231,16 @@ def out_heroes_lanes(player_dict):
                 lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
                 for lane in range(5):
 
-                    if player_dict['lanes_played'][lane] > 5:
-                        highlight_color = ""
-                        if player_dict['lanesWin'][lane] >= 60:
-                            highlight_color = 'style="color:green"'
-                        elif player_dict['lanesWin'][lane] <= 40:
-                            highlight_color = 'style="color:red"'
-                        lane_out += "<tr><td>%s</td><td>%s%%</td><td %s>%s%%</td><tr>" % (LANES[lane],
-                                                                                          str(int(round((player_dict['lanes_played'][lane]/25)* 100))),
-                                                                                          highlight_color,
-                                                                                          str(player_dict['lanesWin'][lane]))
+#                    if player_dict['lanes_played'][lane] > 5:
+                    highlight_color = ""
+                    if player_dict['lanesWin'][lane] >= 60:
+                        highlight_color = 'style="color:green"'
+                    elif player_dict['lanesWin'][lane] <= 40:
+                        highlight_color = 'style="color:red"'
+                    lane_out += "<tr><td>%s</td><td>%s%%</td><td %s>%s%%</td><tr>" % (LANES[lane],
+                                                                                      str(int(round((player_dict['lanes_played'][lane]/player_dict['match_count'])* 100))),
+                                                                                      highlight_color,
+                                                                                      str(player_dict['lanesWin'][lane]))
             out += lane_out + "</table></td>"
         elif row == "avatar":
             # Draw pictures
@@ -307,6 +309,9 @@ def main():
     global DOTA_FOLDER, CURR_FILE, HERO_DICT
     DOTA_FOLDER = "C:/Program Files (x86)/Steam/steamapps/common/dota 2 beta/game/dota/"
     CURR_FILE = os.path.join(DOTA_FOLDER, "server_log.txt")
+    while not os.path.isfile(CURR_FILE):
+        CURR_FILE = input("Please enter the dota 2 beta directory e.g. 'C:/Program Files (x86)/Steam/steamapps/common/dota 2 beta/':\n")
+        CURR_FILE = os.path.join(CURR_FILE,  "game/dota/server_log.txt")
     HERO_DICT = load_heroes()
     pub = Checker()
     while True:
