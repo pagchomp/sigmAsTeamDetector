@@ -42,7 +42,7 @@ PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'impact' : "Impact",
                      'party_pct' : "Party Percent"
                     }
-TOOL_TITLE = "sigmA's Team Detector BETA v3"
+TOOL_TITLE = "sigmA's Team Detector BETA v.4"
 
 CSS = """<style type="text/css">
 h1 {
@@ -89,6 +89,17 @@ th {
 </style>
 """
 
+javascript = """<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script><script>
+function copyToClipboard(element) {
+  var $temp = $('<input>');
+  $('body').append($temp);
+  $temp.val($(element).text()).select();
+  document.execCommand('copy');
+  $temp.remove();
+}
+</script>
+"""
+
 def get_mean(nums):
     """Simple calculation of mean"""
     summation = 0
@@ -133,12 +144,7 @@ def id_new_game():
 def pull_data(player_id):
     """Pulls and creates all data"""
     player_web = STRATZ_API + "player/"
-    behavior = json.loads(urllib.request.urlopen(player_web +
-                                                 player_id +
-                                                 "/behaviorChart?take=250").read().decode('utf-8'))
-    player = json.loads(urllib.request.urlopen(player_web +
-                                               player_id).read().decode('utf-8'))
-    player_dict = {'player_name': player['name'],
+    player_dict = {'player_name': "",
                    'supports' : 0,
                    'cores' : 0,
                    'recent_mmr_avg' : 0,
@@ -159,36 +165,46 @@ def pull_data(player_id):
                    'match_count' : 0
                   }
     try:
-        player_dict['match_count'] = behavior['matchCount']
-        player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
-                                                                       behavior['coreCount'])) * 100, 0))
-        player_dict['cores'] = 100 - player_dict['supports']
-        player_dict['recent_mmr_avg'] = int(round(get_mean([k['rank'] for k in behavior['matches']]), 0))
-        player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
-        heroes = behavior['heroes']
-        player_dict['unique_heroes'] = len(heroes)
-        player_dict['ranked_pct'] = int(round((behavior['rankedCount']/player_dict['match_count']) * 100, 0))
-        player_dict['party_pct'] = int(round((behavior['partyCount']/player_dict['match_count']) * 100, 0))
-        player_dict['activity'] = ACTIVITY[behavior['activity']]
-        if behavior['avgImp'] >= 109:
-            player_dict['impact'] = 'High'
-        elif behavior['avgImp'] <= 91:
-            player_dict['impact'] = 'Low'
-        else:
-            player_dict['impact'] = 'Medium'
-        for curr_hero in heroes:
-            if curr_hero['matchCount'] >= player_dict['match_count']/5:
-                hero_name = HERO_DICT[str(curr_hero['heroId'])]
-                hero_matches = curr_hero['matchCount']
-                hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
-                player_dict['heroes'].append([hero_name, hero_matches, hero_win_pct])
-            curr_lane = curr_hero['lanes']
-            for la in curr_lane:
-                player_dict['lanes_played'][la['lane']] += la['matchCount']
-                player_dict['lanesWin'][la['lane']] += la['winCount']
-        player_dict['lanesWin'] = get_division(player_dict['lanesWin'], player_dict['lanes_played'])
-    except Exception as e:
-        print("No %s data for %s." % (str(e), str(player['name'])))
+        player = json.loads(urllib.request.urlopen(player_web +
+                                               player_id).read().decode('utf-8'))
+        behavior = json.loads(urllib.request.urlopen(player_web +
+                                                 player_id +
+                                                 "/behaviorChart?take=250").read().decode('utf-8'))
+        try:
+            player_dict['player_name'] = player['name']
+            player_dict['match_count'] = behavior['matchCount']
+            player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
+                                                                           behavior['coreCount'])) * 100, 0))
+            player_dict['cores'] = 100 - player_dict['supports']
+            player_dict['recent_mmr_avg'] = int(round(get_mean([k['rank'] for k in behavior['matches']]), 0))
+            player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
+            heroes = behavior['heroes']
+            player_dict['unique_heroes'] = len(heroes)
+            player_dict['ranked_pct'] = int(round((behavior['rankedCount']/player_dict['match_count']) * 100, 0))
+            player_dict['party_pct'] = int(round((behavior['partyCount']/player_dict['match_count']) * 100, 0))
+            player_dict['activity'] = ACTIVITY[behavior['activity']]
+            if behavior['avgImp'] >= 109:
+                player_dict['impact'] = 'High'
+            elif behavior['avgImp'] <= 91:
+                player_dict['impact'] = 'Low'
+            else:
+                player_dict['impact'] = 'Medium'
+            for curr_hero in heroes:
+                if curr_hero['matchCount'] >= player_dict['match_count']/5:
+                    hero_name = HERO_DICT[str(curr_hero['heroId'])]
+                    hero_matches = curr_hero['matchCount']
+                    hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
+                    player_dict['heroes'].append([hero_name, hero_matches, hero_win_pct])
+                curr_lane = curr_hero['lanes']
+                for la in curr_lane:
+                    player_dict['lanes_played'][la['lane']] += la['matchCount']
+                    player_dict['lanesWin'][la['lane']] += la['winCount']
+            player_dict['lanesWin'] = get_division(player_dict['lanesWin'], player_dict['lanes_played'])
+        except Exception as e:
+            print("No %s data for %s." % (str(e), str(player['name'])))
+    except:
+        print("No player information found for player #" + player_id)
+        return player_dict
     try:
         player_dict['party_mmr'] = player['mmrDetail']['partyValue']
         player_dict['solo_mmr'] = player['mmrDetail']['soloValue']
@@ -247,7 +263,7 @@ def out_heroes_lanes(player_dict):
             out += "<td><img src = '%s'></td>" % str(player_dict[row])
         elif row == "color":
             # Colors
-            out += "<td class = %s></td>" % player_dict['color']
+            out += "<td class = \"%s\"></td>" % player_dict['color']
         else:
             str_out = player_dict[row]
             # Rows with percents in them
@@ -283,8 +299,11 @@ class Checker(object):
             print('New Game Found!')
             curr_game = id_new_game()
             del curr_game[:3]
-            output = CSS
-            output += "<html><body><title>%s</title><h1>%s</h1>" % (TOOL_TITLE, TOOL_TITLE)
+            output = "<!DOCTYPE html><html>"
+            output += CSS
+            output += "<body><title>%s</title><h1>%s</h1>" % (TOOL_TITLE, TOOL_TITLE)
+            output += javascript
+            output += "<button onclick=\"copyToClipboard('#p1')\">Copy TEXT 1</button>"
             factions = ['RADIANT', 'DIRE']
             output += "<table>"
             print('Gathering Player Data. . .')
@@ -298,7 +317,7 @@ class Checker(object):
                     for curr_col in ROW_ORDER:
                         output += "<td>%s</td>" % str(PROPER_NAMES_DICT[curr_col])
                     output += "</tr>"
-                output += "<tr>%s</tr>" % out_heroes_lanes(out_data)
+                output += "<tr id = 'p%s'>%s</tr>" % (i, out_heroes_lanes(out_data))
             output += "</table>"
             output += "</body></html>"
             gen_html(output)
