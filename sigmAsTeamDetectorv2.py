@@ -12,6 +12,8 @@ import json
 import webbrowser
 import urllib.request
 
+RECENT_GAMES = 50
+
 STRATZ_API = "https://api.stratz.com/api/v1/"
 # My player id (kept for testing)
 # player_id = "84195549"
@@ -169,7 +171,8 @@ def pull_data(player_id):
                                                player_id).read().decode('utf-8'))
         behavior = json.loads(urllib.request.urlopen(player_web +
                                                  player_id +
-                                                 "/behaviorChart?take=250").read().decode('utf-8'))
+                                                 "/behaviorChart?take=" +
+                                                 str(RECENT_GAMES)).read().decode('utf-8'))
         try:
             player_dict['player_name'] = player['name']
             player_dict['match_count'] = behavior['matchCount']
@@ -190,7 +193,7 @@ def pull_data(player_id):
             else:
                 player_dict['impact'] = 'Medium'
             for curr_hero in heroes:
-                if curr_hero['matchCount'] >= player_dict['match_count']/5:
+                if curr_hero['matchCount'] >= RECENT_GAMES//12:
                     hero_name = HERO_DICT[str(curr_hero['heroId'])]
                     hero_matches = curr_hero['matchCount']
                     hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
