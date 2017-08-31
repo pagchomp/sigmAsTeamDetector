@@ -10,12 +10,8 @@ Created on Fri Aug  4 11:30:35 2017
 TODO:
 Add a button that summarizes the game (names/mmr) (maybe averages 3 mmr):
     Blue:2436//Teal:2319//. . .
-Button for heroes (if relevant)
-    Blue:**Monkey King/5 games/40% WR**Queen of Pain/4 games/60% WR**
 one for general stats (mmr, etc)
-    Blue:**Roaming/14%/50% WR**Safe/20%/40% WR**
-button for lanes
-    
+    Blue:**Roaming/14%/50% WR**Safe/20%/40% WR**    
 """
 
 import os
@@ -390,14 +386,14 @@ def main():
         CURR_FILE = os.path.join(CURR_FILE,  "game/dota/server_log.txt")
     HERO_DICT = load_heroes()
     pub = Checker()
-#    while True:
-    try:
-        time.sleep(5)
-        pub.check()
-    except Exception as e:
-        print('Error Parsing Game: %s' % str(e))
-        time.sleep(2)
-        main()
+    while True:
+        try:
+            time.sleep(5)
+            pub.check()
+        except Exception as e:
+            print('Error Parsing Game: %s' % str(e))
+            time.sleep(2)
+            main()
 
 if __name__ == "__main__":
     main()
