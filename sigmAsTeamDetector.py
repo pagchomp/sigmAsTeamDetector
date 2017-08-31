@@ -6,11 +6,25 @@ Created on Fri Aug  4 11:30:35 2017
 @author: Brett Burk
 """
 
+"""
+TODO:
+Add a button that summarizes the game (names/mmr) (maybe averages 3 mmr):
+    Blue:2436//Teal:2319//. . .
+Button for heroes (if relevant)
+    Blue:**Monkey King/5 games/40% WR**Queen of Pain/4 games/60% WR**
+one for general stats (mmr, etc)
+    Blue:**Roaming/14%/50% WR**Safe/20%/40% WR**
+button for lanes
+    
+"""
+
 import os
 import time
 import json
 import webbrowser
 import urllib.request
+
+RECENT_GAMES = 50
 
 STRATZ_API = "https://api.stratz.com/api/v1/"
 # My player id (kept for testing)
@@ -20,9 +34,10 @@ COLORS_DOTA = ["Blue", "Teal", "Purple", "Yellow", "Orange",
                "Pink", "Grey", "LightBlue", "Green", "Brown"]
 LANES = ["Roaming", "Safe Lane", "Mid", "Offlane", "Jungle"]
 ACTIVITY = ["None", "Very Low", "Low", "Medium", "High", "Very High", "Intense"]
-ROW_ORDER = ['color', 'player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party_mmr',
+ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party_mmr',
              'solo_mmr', 'matches', 'ranked_pct', 'activity', 'impact', 'party_pct', 'supports',
              'cores', 'unique_heroes', 'heroes', 'lanes_played']
+COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 19, 19]
 
 PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'supports' : "Support",
@@ -40,9 +55,10 @@ PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'ranked_pct' : "Ranked",
                      'activity' : "Activity Level",
                      'impact' : "Impact",
-                     'party_pct' : "Party Percent"
+                     'party_pct' : "Party Percent",
+                     'p_id' : "Player ID"
                     }
-TOOL_TITLE = "sigmA's Team Detector BETA v3"
+TOOL_TITLE = "sigmA's Team Detector BETA v.6"
 
 CSS = """<style type="text/css">
 h1 {
@@ -52,14 +68,17 @@ h2 {
     text-align: center;
 }
 table {
+    table-layout: fixed;
+    width: 100%;
     border: solid 1px #DDEEEE;
     border-collapse: collapse;
     border-spacing: 0;
-    font: normal 13px Arial, sans-serif;
+    font: normal 12px Arial, sans-serif;
     border-left: none;
     border-right: none;
 }
 td {
+
     border-top: solid 1px #DDEEEE;
     color: #333;
     padding: 10px;
@@ -76,6 +95,11 @@ th {
     text-align: center;
     text-shadow: 1px 1px 1px #fff;
 }
+table:first-child {
+  font: normal 10px Arial, sans-serif;
+  text-align:center;
+}
+
 .Blue{background-color: #2E6AE6;}
 .Teal{background-color: #5DE6AD;}
 .Purple{background-color: #AD00AD;}
@@ -86,7 +110,33 @@ th {
 .LightBlue{background-color: #5CC5E0;}
 .Green{background-color: #00771F;}
 .Brown{background-color: #956000;}
+
+.button {
+  font: bold 12px Arial;
+  text-decoration: none;
+  background-color: #EEEEEE;
+  color: #333333;
+  padding: 2px 6px 2px 6px;
+  border-top: 1px solid #CCCCCC;
+  border-right: 1px solid #333333;
+  border-bottom: 1px solid #333333;
+  border-left: 1px solid #CCCCCC;
+}
+
 </style>
+"""
+
+javascript = """<script>
+function setClipboard(value) {
+    var tempInput = document.createElement("input");
+    tempInput.style = "position: absolute; left: -1000px; top: -1000px";
+    tempInput.value = value;
+    document.body.appendChild(tempInput);
+    tempInput.select();
+    document.execCommand("copy");
+    document.body.removeChild(tempInput);
+}
+</script>
 """
 
 def get_mean(nums):
@@ -133,12 +183,8 @@ def id_new_game():
 def pull_data(player_id):
     """Pulls and creates all data"""
     player_web = STRATZ_API + "player/"
-    behavior = json.loads(urllib.request.urlopen(player_web +
-                                                 player_id +
-                                                 "/behaviorChart?take=250").read().decode('utf-8'))
-    player = json.loads(urllib.request.urlopen(player_web +
-                                               player_id).read().decode('utf-8'))
-    player_dict = {'player_name': player['name'],
+    player_dict = {'player_name': "",
+                   'p_id' : "",
                    'supports' : 0,
                    'cores' : 0,
                    'recent_mmr_avg' : 0,
@@ -159,36 +205,54 @@ def pull_data(player_id):
                    'match_count' : 0
                   }
     try:
-        player_dict['match_count'] = behavior['matchCount']
-        player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
-                                                                       behavior['coreCount'])) * 100, 0))
-        player_dict['cores'] = 100 - player_dict['supports']
-        player_dict['recent_mmr_avg'] = int(round(get_mean([k['rank'] for k in behavior['matches']]), 0))
-        player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
-        heroes = behavior['heroes']
-        player_dict['unique_heroes'] = len(heroes)
-        player_dict['ranked_pct'] = int(round((behavior['rankedCount']/player_dict['match_count']) * 100, 0))
-        player_dict['party_pct'] = int(round((behavior['partyCount']/player_dict['match_count']) * 100, 0))
-        player_dict['activity'] = ACTIVITY[behavior['activity']]
-        if behavior['avgImp'] >= 109:
-            player_dict['impact'] = 'High'
-        elif behavior['avgImp'] <= 91:
-            player_dict['impact'] = 'Low'
-        else:
-            player_dict['impact'] = 'Medium'
-        for curr_hero in heroes:
-            if curr_hero['matchCount'] >= player_dict['match_count']/5:
-                hero_name = HERO_DICT[str(curr_hero['heroId'])]
-                hero_matches = curr_hero['matchCount']
-                hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
-                player_dict['heroes'].append([hero_name, hero_matches, hero_win_pct])
-            curr_lane = curr_hero['lanes']
-            for la in curr_lane:
-                player_dict['lanes_played'][la['lane']] += la['matchCount']
-                player_dict['lanesWin'][la['lane']] += la['winCount']
-        player_dict['lanesWin'] = get_division(player_dict['lanesWin'], player_dict['lanes_played'])
-    except Exception as e:
-        print("No %s data for %s." % (str(e), str(player['name'])))
+        player_dict['p_id'] = str(player_id)
+        player = json.loads(urllib.request.urlopen(player_web +
+                                               player_id).read().decode('utf-8'))
+        behavior = json.loads(urllib.request.urlopen(player_web +
+                                                 player_id +
+                                                 "/behaviorChart?take=" +
+                                                 str(RECENT_GAMES)).read().decode('utf-8'))
+        try:
+            player_dict['player_name'] = player['name']
+            player_dict['match_count'] = behavior['matchCount']
+            player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
+                                                                           behavior['coreCount'])) * 100, 0))
+            player_dict['cores'] = 100 - player_dict['supports']
+#            get_mean([k['rank'] for k in behavior['matches']]), 0))
+            ranks_mean = []
+            for k in behavior['matches']:
+                if 'rank' in k:
+                    ranks_mean.append(k['rank'])
+            player_dict['recent_mmr_avg'] = int(round(get_mean(ranks_mean)))      
+                        
+            player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
+            heroes = behavior['heroes']
+            player_dict['unique_heroes'] = len(heroes)
+            player_dict['ranked_pct'] = int(round((behavior['rankedCount']/player_dict['match_count']) * 100, 0))
+            player_dict['party_pct'] = int(round((behavior['partyCount']/player_dict['match_count']) * 100, 0))
+            player_dict['activity'] = ACTIVITY[behavior['activity']]
+            if behavior['avgImp'] >= 109:
+                player_dict['impact'] = 'High'
+            elif behavior['avgImp'] <= 91:
+                player_dict['impact'] = 'Low'
+            else:
+                player_dict['impact'] = 'Medium'
+            for curr_hero in heroes:
+                if curr_hero['matchCount'] >= RECENT_GAMES//12:
+                    hero_name = HERO_DICT[str(curr_hero['heroId'])]
+                    hero_matches = curr_hero['matchCount']
+                    hero_win_pct = int(round((curr_hero['winCount']/hero_matches) * 100))
+                    player_dict['heroes'].append([hero_name, hero_matches, hero_win_pct])
+                curr_lane = curr_hero['lanes']
+                for la in curr_lane:
+                    player_dict['lanes_played'][la['lane']] += la['matchCount']
+                    player_dict['lanesWin'][la['lane']] += la['winCount']
+            player_dict['lanesWin'] = get_division(player_dict['lanesWin'], player_dict['lanes_played'])
+        except Exception as e:
+            print("No %s data for %s." % (str(e), str(player['name'])))
+    except:
+        print("No player information found for player #" + player_id)
+        return player_dict
     try:
         player_dict['party_mmr'] = player['mmrDetail']['partyValue']
         player_dict['solo_mmr'] = player['mmrDetail']['soloValue']
@@ -203,15 +267,17 @@ def pull_data(player_id):
         print("No %s data for %s." % (str(e), str(player['name'])))
     return player_dict
 
-def out_heroes_lanes(player_dict):
+def out_heroes_lanes(player_dict, p_num):
     """Outputs the data in HTML"""
     out = ""
     for row in ROW_ORDER:
         if row == "heroes":
-            # Heroes
-            hero_out = "<td><table>"
+            # Heroes            
+            out += "<td>"
             if len(player_dict['heroes']) >= 1:
+                hero_out = "<table>"
                 hero_out += "<thead><th>Hero</th><th>#</th><th>Win</th></thead>"
+                copy_data = COLORS_DOTA[p_num] + " in %s games: " % RECENT_GAMES
                 for hero in player_dict['heroes']:
                     highlight_color = ""
                     if hero[2] >= 60:
@@ -220,18 +286,23 @@ def out_heroes_lanes(player_dict):
                         highlight_color = 'style="color:red"'
                     hero_out += "<tr><td>"
                     hero_out += hero[0]
+                    copy_data += hero[0] + ": "
                     hero_out += "</td><td>" + str(hero[1])
+                    copy_data += str(hero[1]) + "X "
                     hero_out += "</td><td %s>%s%%" % (highlight_color, str(hero[2]))
+                    copy_data += str(hero[2]) + "%WR "
                     hero_out += "</td><tr>"
-            out += hero_out + "</table></td>"
+#                print(copy_data)
+                hero_out += "</table><center><button onclick=\"setClipboard('%s')\">Copy</button></center></td>" % copy_data
+                out += hero_out
+            else:
+                out += "</td>"
         elif row == "lanes_played":
             # Lanes
             lane_out = "<td><table>"
             if len(player_dict['heroes']) >= 1:
                 lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
                 for lane in range(5):
-
-#                    if player_dict['lanes_played'][lane] > 5:
                     highlight_color = ""
                     if player_dict['lanesWin'][lane] >= 60:
                         highlight_color = 'style="color:green"'
@@ -245,9 +316,9 @@ def out_heroes_lanes(player_dict):
         elif row == "avatar":
             # Draw pictures
             out += "<td><img src = '%s'></td>" % str(player_dict[row])
-        elif row == "color":
+        elif row == "player_name":
             # Colors
-            out += "<td class = %s></td>" % player_dict['color']
+            out += "<td class = \"%s\" style = \"word-break: break-all;\"><a href = https://stratz.com/player/%s class = 'button' target='_blank'>%s</a></td>" % (player_dict['color'], player_dict['p_id'], player_dict['player_name'])
         else:
             str_out = player_dict[row]
             # Rows with percents in them
@@ -283,8 +354,10 @@ class Checker(object):
             print('New Game Found!')
             curr_game = id_new_game()
             del curr_game[:3]
-            output = CSS
-            output += "<html><body><title>%s</title><h1>%s</h1>" % (TOOL_TITLE, TOOL_TITLE)
+            output = "<!DOCTYPE html><html>"
+            output += CSS
+            output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
+            output += javascript
             factions = ['RADIANT', 'DIRE']
             output += "<table>"
             print('Gathering Player Data. . .')
@@ -295,11 +368,13 @@ class Checker(object):
                 if i == 0 or i == 5:
                     output += "</table><br><h2>%s</h2><table>" % factions[i == 5]
                     output += "<tr>"
-                    for curr_col in ROW_ORDER:
-                        output += "<td>%s</td>" % str(PROPER_NAMES_DICT[curr_col])
+                    for curr_col in range(len(ROW_ORDER)):
+                        output += "<td width = '%s%%'>%s</td>" % (str(COLUMN_WIDTHS[curr_col]), str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
                     output += "</tr>"
-                output += "<tr>%s</tr>" % out_heroes_lanes(out_data)
+                output += "<tr>%s</tr>" % out_heroes_lanes(out_data, i)
             output += "</table>"
+            output += "<center>Powered by: <br><img src = \"https://stratz.com/assets/img/stratz/beta/Stratz_Logo_Light_Full.90e75125.png\" style = \"background-color:black;\"></center>"
+
             output += "</body></html>"
             gen_html(output)
             print('Finished!')
@@ -308,21 +383,21 @@ class Checker(object):
 def main():
     global DOTA_FOLDER, CURR_FILE, HERO_DICT
     DOTA_FOLDER = "C:/Program Files (x86)/Steam/steamapps/common/dota 2 beta/game/dota/"
+#    DOTA_FOLDER = "C:/Users/bmburk/Dropbox/sigmAsTeamDetector/"
     CURR_FILE = os.path.join(DOTA_FOLDER, "server_log.txt")
     while not os.path.isfile(CURR_FILE):
         CURR_FILE = input("Please enter the dota 2 beta directory e.g. 'C:/Program Files (x86)/Steam/steamapps/common/dota 2 beta/':\n")
         CURR_FILE = os.path.join(CURR_FILE,  "game/dota/server_log.txt")
     HERO_DICT = load_heroes()
     pub = Checker()
-    while True:
-        try:
-            time.sleep(5)
-            pub.check()
-        except Exception as e:
-            print('Error Parsing Game: %s' % str(e))
-            time.sleep(2)
-            main()
-    # my code here
+#    while True:
+    try:
+        time.sleep(5)
+        pub.check()
+    except Exception as e:
+        print('Error Parsing Game: %s' % str(e))
+        time.sleep(2)
+        main()
 
 if __name__ == "__main__":
     main()
