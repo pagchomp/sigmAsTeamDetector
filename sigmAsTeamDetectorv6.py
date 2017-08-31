@@ -36,7 +36,7 @@ COLORS_DOTA = ["Blue", "Teal", "Purple", "Yellow", "Orange",
                "Pink", "Grey", "LightBlue", "Green", "Brown"]
 LANES = ["Roaming", "Safe Lane", "Mid", "Offlane", "Jungle"]
 ACTIVITY = ["None", "Very Low", "Low", "Medium", "High", "Very High", "Intense"]
-ROW_ORDER = ['color', 'player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party_mmr',
+ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party_mmr',
              'solo_mmr', 'matches', 'ranked_pct', 'activity', 'impact', 'party_pct', 'supports',
              'cores', 'unique_heroes', 'heroes', 'lanes_played']
 
@@ -56,9 +56,10 @@ PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'ranked_pct' : "Ranked",
                      'activity' : "Activity Level",
                      'impact' : "Impact",
-                     'party_pct' : "Party Percent"
+                     'party_pct' : "Party Percent",
+                     'p_id' : "Player ID"
                     }
-TOOL_TITLE = "sigmA's Team Detector BETA v.5"
+TOOL_TITLE = "sigmA's Team Detector BETA v.6"
 
 CSS = """<style type="text/css">
 h1 {
@@ -102,6 +103,19 @@ th {
 .LightBlue{background-color: #5CC5E0;}
 .Green{background-color: #00771F;}
 .Brown{background-color: #956000;}
+
+.button {
+  font: bold 18px Arial;
+  text-decoration: none;
+  background-color: #EEEEEE;
+  color: #333333;
+  padding: 2px 6px 2px 6px;
+  border-top: 1px solid #CCCCCC;
+  border-right: 1px solid #333333;
+  border-bottom: 1px solid #333333;
+  border-left: 1px solid #CCCCCC;
+}
+
 </style>
 """
 
@@ -244,7 +258,7 @@ def pull_data(player_id):
         print("No %s data for %s." % (str(e), str(player['name'])))
     return player_dict
 
-def out_heroes_lanes(player_dict):
+def out_heroes_lanes(player_dict, p_num):
     """Outputs the data in HTML"""
     out = ""
     for row in ROW_ORDER:
@@ -252,6 +266,7 @@ def out_heroes_lanes(player_dict):
             # Heroes
             hero_out = "<td><table>"
             if len(player_dict['heroes']) >= 1:
+                hero_out += "<button onclick=\"copyToClipboard('#%s')\">Copy TEXT 1</button>" % p_num
                 hero_out += "<thead><th>Hero</th><th>#</th><th>Win</th></thead>"
                 for hero in player_dict['heroes']:
                     highlight_color = ""
@@ -288,7 +303,7 @@ def out_heroes_lanes(player_dict):
             out += "<td><img src = '%s'></td>" % str(player_dict[row])
         elif row == "player_name":
             # Colors
-            out += "<td class = \"%s\"><a href = https://stratz.com/player/%s>%s</a></td>" % (player_dict['color'], player_dict['p_id'], player_dict['name'])
+            out += "<td class = \"%s\"><a href = https://stratz.com/player/%s class = 'button'>%s</a></td>" % (player_dict['color'], player_dict['p_id'], player_dict['player_name'])
         else:
             str_out = player_dict[row]
             # Rows with percents in them
@@ -328,7 +343,7 @@ class Checker(object):
             output += CSS
             output += "<body><title>%s</title><h1>%s</h1>" % (TOOL_TITLE, TOOL_TITLE)
             output += javascript
-            output += "<button onclick=\"copyToClipboard('#p1')\">Copy TEXT 1</button>"
+            
             factions = ['RADIANT', 'DIRE']
             output += "<table>"
             print('Gathering Player Data. . .')
@@ -342,7 +357,7 @@ class Checker(object):
                     for curr_col in ROW_ORDER:
                         output += "<td>%s</td>" % str(PROPER_NAMES_DICT[curr_col])
                     output += "</tr>"
-                output += "<tr id = 'p%s'>%s</tr>" % (i, out_heroes_lanes(out_data))
+                output += "<tr id = 'p%s'>%s</tr>" % (i, out_heroes_lanes(out_data, i))
             output += "</table>"
             output += "</body></html>"
             gen_html(output)
