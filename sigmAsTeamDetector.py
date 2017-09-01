@@ -17,7 +17,7 @@ import json
 import webbrowser
 import urllib.request
 
-TEST = True
+TEST = False
 
 # My player id (kept for testing)
 # player_id = "84195549"
