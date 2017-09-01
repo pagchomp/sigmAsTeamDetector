@@ -8,10 +8,7 @@ Created on Fri Aug  4 11:30:35 2017
 
 """
 TODO:
-Add a button that summarizes the game (names/mmr) (maybe averages 3 mmr):
-    Blue:2436//Teal:2319//. . .
-one for general stats (mmr, etc)
-    Blue:**Roaming/14%/50% WR**Safe/20%/40% WR**    
+Cleanup of display of paired players
 """
 
 import os
@@ -20,12 +17,17 @@ import json
 import webbrowser
 import urllib.request
 
-RECENT_GAMES = 50
+TEST = True
 
-STRATZ_API = "https://api.stratz.com/api/v1/"
 # My player id (kept for testing)
 # player_id = "84195549"
+# player_id = "115392625"
 
+TOOL_TITLE = "sigmA's Team Detector BETA v.7"
+
+RECENT_GAMES = 100
+
+STRATZ_API = "https://api.stratz.com/api/v1/"
 COLORS_DOTA = ["Blue", "Teal", "Purple", "Yellow", "Orange",
                "Pink", "Grey", "LightBlue", "Green", "Brown"]
 LANES = ["Roaming", "Safe Lane", "Mid", "Offlane", "Jungle"]
@@ -34,7 +36,6 @@ ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party
              'solo_mmr', 'matches', 'ranked_pct', 'activity', 'impact', 'party_pct', 'supports',
              'cores', 'unique_heroes', 'heroes', 'lanes_played']
 COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 19, 19]
-
 PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'supports' : "Support",
                      'cores' : "Core",
@@ -54,14 +55,33 @@ PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'party_pct' : "Party Percent",
                      'p_id' : "Player ID"
                     }
-TOOL_TITLE = "sigmA's Team Detector BETA v.6"
 
 CSS = """<style type="text/css">
 h1 {
     text-align: center;
 }
+a.title{
+        text-decoration: none;
+        color: #111; 
+        font-family: 'Open Sans Condensed', sans-serif; 
+        font-size: 64px; 
+        font-weight: 700; 
+        line-height: 64px; 
+        margin: 0 0 0;
+        padding: 20px 30px; 
+        text-align: center;
+}
 h2 {
     text-align: center;
+    text-decoration: none;
+    color: #111; 
+    font-family: 'Open Sans Condensed', sans-serif; 
+    font-size: 18px; 
+    font-weight: 700; 
+    line-height: 18px; 
+    margin: 0 0 0;
+    padding: 5px 5px; 
+    text-align: left;
 }
 table {
     table-layout: fixed;
@@ -69,7 +89,7 @@ table {
     border: solid 1px #DDEEEE;
     border-collapse: collapse;
     border-spacing: 0;
-    font: normal 12px Arial, sans-serif;
+    font: normal 11px Arial, sans-serif;
     border-left: none;
     border-right: none;
 }
@@ -135,6 +155,20 @@ function setClipboard(value) {
 </script>
 """
 
+def find_file(target, folder):
+    for f in os.listdir(folder):
+        path = os.path.join(folder, f)
+        try:
+            if os.path.isdir(path):
+                result = find_file(target, path)
+                if result is not None:
+                    return result
+                continue
+            if f == target and "dota" in path:
+                return path
+        except:
+            pass
+        
 def get_mean(nums):
     """Simple calculation of mean"""
     summation = 0
@@ -198,7 +232,8 @@ def pull_data(player_id):
                    'activity' : "",
                    'impact' : "",
                    'party_pct' : 0,
-                   'match_count' : 0
+                   'match_count' : 0,
+                   'recent_match_ids' : []
                   }
     try:
         player_dict['p_id'] = str(player_id)
@@ -208,19 +243,23 @@ def pull_data(player_id):
                                                  player_id +
                                                  "/behaviorChart?take=" +
                                                  str(RECENT_GAMES)).read().decode('utf-8'))
+        matches = json.loads(urllib.request.urlopen(STRATZ_API +
+                                                    "match/?steamid=" +
+                                                    str(player_id) +
+                                                    "&take=" +
+                                                    str(RECENT_GAMES)).read().decode('utf-8'))
         try:
+
             player_dict['player_name'] = player['name']
             player_dict['match_count'] = behavior['matchCount']
             player_dict['supports'] = int(round((behavior['supportCount']/(behavior['supportCount'] +
                                                                            behavior['coreCount'])) * 100, 0))
             player_dict['cores'] = 100 - player_dict['supports']
-#            get_mean([k['rank'] for k in behavior['matches']]), 0))
             ranks_mean = []
             for k in behavior['matches']:
                 if 'rank' in k:
                     ranks_mean.append(k['rank'])
-            player_dict['recent_mmr_avg'] = int(round(get_mean(ranks_mean)))      
-                        
+            player_dict['recent_mmr_avg'] = int(round(get_mean(ranks_mean)))
             player_dict['recent_win_pct'] = int(round(100 * behavior['winCount']/player_dict['match_count'], 0))
             heroes = behavior['heroes']
             player_dict['unique_heroes'] = len(heroes)
@@ -244,6 +283,8 @@ def pull_data(player_id):
                     player_dict['lanes_played'][la['lane']] += la['matchCount']
                     player_dict['lanesWin'][la['lane']] += la['winCount']
             player_dict['lanesWin'] = get_division(player_dict['lanesWin'], player_dict['lanes_played'])
+            for match in matches['results']:
+                player_dict['recent_match_ids'].append(match['id'])
         except Exception as e:
             print("No %s data for %s." % (str(e), str(player['name'])))
     except:
@@ -282,33 +323,40 @@ def out_heroes_lanes(player_dict, p_num):
                         highlight_color = 'style="color:red"'
                     hero_out += "<tr><td>"
                     hero_out += hero[0]
-                    copy_data += hero[0] + ": "
+                    copy_data += hero[0] + "-"
                     hero_out += "</td><td>" + str(hero[1])
-                    copy_data += str(hero[1]) + "X "
+                    copy_data += str(hero[1]) + "-"
                     hero_out += "</td><td %s>%s%%" % (highlight_color, str(hero[2]))
-                    copy_data += str(hero[2]) + "%WR "
+                    copy_data += str(hero[2]) + "% "
                     hero_out += "</td><tr>"
-#                print(copy_data)
                 hero_out += "</table><center><button onclick=\"setClipboard('%s')\">Copy</button></center></td>" % copy_data
                 out += hero_out
             else:
                 out += "</td>"
         elif row == "lanes_played":
-            # Lanes
+            # Lanes data
+            copy_data = COLORS_DOTA[p_num] + " in %s games: " % RECENT_GAMES
             lane_out = "<td><table>"
-            if len(player_dict['heroes']) >= 1:
-                lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
-                for lane in range(5):
-                    highlight_color = ""
-                    if player_dict['lanesWin'][lane] >= 60:
-                        highlight_color = 'style="color:green"'
-                    elif player_dict['lanesWin'][lane] <= 40:
-                        highlight_color = 'style="color:red"'
-                    lane_out += "<tr><td>%s</td><td>%s%%</td><td %s>%s%%</td><tr>" % (LANES[lane],
-                                                                                      str(int(round((player_dict['lanes_played'][lane]/player_dict['match_count'])* 100))),
-                                                                                      highlight_color,
-                                                                                      str(player_dict['lanesWin'][lane]))
-            out += lane_out + "</table></td>"
+            lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
+            for lane in range(5):
+                lane_played = int(round((player_dict['lanes_played'][lane]/player_dict['match_count'])* 100))
+                highlight_color_win = ""
+                if player_dict['lanesWin'][lane] >= 60:
+                    highlight_color_win = 'style="color:green"'
+                elif player_dict['lanesWin'][lane] <= 40 and player_dict['lanes_played'][lane] != 0:
+                    highlight_color_win = 'style="color:red"'
+                if lane_played > 25:
+                    row_style = " style='font-weight:800'"
+                else:
+                    row_style = ""
+                if lane_played > 0:
+                    copy_data += LANES[lane] + ": " + str(player_dict['lanes_played'][lane]) + "-" + str(player_dict['lanesWin'][lane]) + "% "
+                lane_out += "<tr %s><td>%s</td><td>%s%%</td><td %s>%s%%</td></tr>" % (row_style,
+                                                                                     LANES[lane],
+                                                                                     str(lane_played),
+                                                                                     highlight_color_win,
+                                                                                     str(player_dict['lanesWin'][lane]))
+            out += lane_out + "</table><center><button onclick=\"setClipboard('%s')\">Copy</button></center></td>" % copy_data
         elif row == "avatar":
             # Draw pictures
             out += "<td><img src = '%s'></td>" % str(player_dict[row])
@@ -352,24 +400,44 @@ class Checker(object):
             del curr_game[:3]
             output = "<!DOCTYPE html><html>"
             output += CSS
-            output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
+            output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
             output += javascript
             factions = ['RADIANT', 'DIRE']
-            output += "<table>"
+            table_output = "<table>"
             print('Gathering Player Data. . .')
+            mmr_data = ""
+            matches = []
             for i in range(10):
                 player_id = curr_game[i][3:-1].split(":")[2]
                 out_data = pull_data(player_id)
+                mmr_data += COLORS_DOTA[i] + ":" + str(out_data['solo_mmr']) + "/" + str(out_data['party_mmr']) + " "
                 out_data['color'] = COLORS_DOTA[i]
                 if i == 0 or i == 5:
-                    output += "</table><br><h2>%s</h2><table>" % factions[i == 5]
-                    output += "<tr>"
+                    table_output += "</table><br><h2>%s</h2><table>" % factions[i == 5]
+                    table_output += "<tr>"
                     for curr_col in range(len(ROW_ORDER)):
-                        output += "<td width = '%s%%'>%s</td>" % (str(COLUMN_WIDTHS[curr_col]), str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
-                    output += "</tr>"
-                output += "<tr>%s</tr>" % out_heroes_lanes(out_data, i)
-            output += "</table>"
-            output += "<center>Powered by: <br><img src = \"https://stratz.com/assets/img/stratz/beta/Stratz_Logo_Light_Full.90e75125.png\" style = \"background-color:black;\"></center>"
+                        table_output += "<td width = '%s%%'>%s</td>" % (str(COLUMN_WIDTHS[curr_col]), str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
+                    table_output += "</tr>"
+                table_output += "<tr>%s</tr>" % out_heroes_lanes(out_data, i)
+                matches.append(out_data)
+            table_output += "</table>"
+            output += "<center><button onclick=\"setClipboard('%s')\">Copy MMRs</button></center><br>" % mmr_data
+            output += table_output
+            plays_together = ""
+            # https://api.stratz.com/api/v1/match/?matchId=3416483753,3416451526
+            for i in range(len(matches)):
+                for j in range(i + 1, len(matches)):
+                    shared_matches = set(matches[i]['recent_match_ids']) & set(matches[j]['recent_match_ids'])
+                    shared_matches = [str(x) for x in shared_matches]
+                    if len(shared_matches) > 0:
+                        plays_together += "<br><a href = %s> %s and %s have played %s games together in the past %s</a><br>" % ("https://api.stratz.com/api/v1/match/?matchId=" +
+                                                                                                                                ','.join(shared_matches),
+                                                                                                                                matches[i]['player_name'], 
+                                                                                                                                matches[j]['player_name'],
+                                                                                                                                str(len(shared_matches)),
+                                                                                                                                str(RECENT_GAMES))
+            output += plays_together
+            output += "<center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
 
             output += "</body></html>"
             gen_html(output)
@@ -382,18 +450,29 @@ def main():
 #    DOTA_FOLDER = "C:/Users/bmburk/Dropbox/sigmAsTeamDetector/"
     CURR_FILE = os.path.join(DOTA_FOLDER, "server_log.txt")
     while not os.path.isfile(CURR_FILE):
-        CURR_FILE = input("Please enter the dota 2 beta directory e.g. 'C:/Program Files (x86)/Steam/steamapps/common/dota 2 beta/':\n")
-        CURR_FILE = os.path.join(CURR_FILE,  "game/dota/server_log.txt")
+        print('Default folder does not contain Dota 2, please wait while the Dota 2 folder is found. . .')
+        drives = [letter + ':\\' for letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ']
+        target = "server_log.txt"
+        for drive in drives:
+            if os.path.isdir(drive):
+                filepath = find_file(target, drive)
+                if filepath is not None:
+                    break    
+        CURR_FILE = os.path.join(filepath)
+        print('Folder found!')
     HERO_DICT = load_heroes()
     pub = Checker()
-    while True:
-        try:
-            time.sleep(5)
-            pub.check()
-        except Exception as e:
-            print('Error Parsing Game: %s' % str(e))
-            time.sleep(2)
-            main()
+    if TEST == True:
+        pub.check()
+    else:
+        while True:
+            try:
+                time.sleep(5)
+                pub.check()
+            except Exception as e:
+                print('Error Parsing Game: %s' % str(e))
+                time.sleep(2)
+                main()
 
 if __name__ == "__main__":
     main()
