@@ -32,9 +32,10 @@ COLORS_DOTA = ["Blue", "Teal", "Purple", "Yellow", "Orange",
                "Pink", "Grey", "LightBlue", "Green", "Brown"]
 LANES = ["Roaming", "Safe Lane", "Mid", "Offlane", "Jungle"]
 ACTIVITY = ["None", "Very Low", "Low", "Medium", "High", "Very High", "Intense"]
-ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'recent_mmr_avg', 'party_mmr',
-             'solo_mmr', 'matches', 'ranked_pct', 'activity', 'impact', 'party_pct', 'supports',
-             'cores', 'unique_heroes', 'heroes', 'lanes_played']
+ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'solo_mmr', 'party_mmr', 
+			 'recent_mmr_avg','matches', 'ranked_pct', 'activity', 'impact', 
+			 'party_pct', 'supports', 'cores', 'unique_heroes', 'heroes', 
+			 'lanes_played']
 COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 19, 19]
 PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'supports' : "Support",
