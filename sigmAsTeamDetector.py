@@ -369,8 +369,7 @@ def player_processor(player_id):
                                                     player_dict['lanes_played'])
             for match in matches['results']:
                 player_dict['recent_match_ids'].append(str(match['id']))
-        except Exception as e:
-#            print("No %s data for %s." % (str(e), str(player['name'])))
+        except:
             pass
     except:
         pass
@@ -413,12 +412,6 @@ def game_processor():
                                           stat[0],
                                           stat[1]])
                 player_df[i]['played_together'].append(shared_output)
-#                for k in range(len(shared_output)):
-#                    shared_output[k][0] = player_df[i]['player_name']
-#                    if shared_output[k][1] == 'Won':
-#                        shared_output[k][1] = 'Lost'
-#                    elif shared_output[k][1] == 'Lost':
-#                        shared_output[k][1] = 'Win'
                 player_df[j]['played_together'].append(shared_output)
     html_output(player_df)
 
@@ -431,7 +424,8 @@ def output_player(player, p_num):
             out += "<td><img src = '%s'></td>" % str(player[row])
         elif row == "player_name":
             # Colors
-            out += "<td class = \"%s\" style = \"word-break: break-all;\"><a href = https://stratz.com/player/%s class = 'button' target='_blank'>%s</a></td>" % (player['color'], player['player_id'], player['player_name'])
+            out += "<td class = \"%s\" style = \"word-break: break-all;\">" \
+            "<a href = https://stratz.com/player/%s class = 'button' target='_blank'>%s</a></td>" % (player['color'], player['player_id'], player['player_name'])
         elif row == "heroes":
             # Heroes
             out += "<td>"
@@ -487,17 +481,13 @@ def output_player(player, p_num):
         elif row == "played_together":
             # Games played together
             out += "<td><table>"
-            out += "<thead><th>Player 1</th><th>Status</th><th>Player 2</th><th>Count</th></thead>"
+            out += "<thead><th>Status</th><th>Player 2</th><th>Count</th></thead>"
             for i in range(len(player['played_together'])):
                 for j in range(len(player['played_together'][i])):
-                   #["Won together", 0],
-                   #['Won versus', 0],
-                   #['Lost versus', 0],
-                   #["Lost together", 0]]
                     p1_name = player['played_together'][i][j][0]
                     p2_name = player['played_together'][i][j][1]
                     result_match = player['played_together'][i][j][2]
-                    result_match_number = player['played_together'][i][j][3]
+                    result_match_number = str(player['played_together'][i][j][3])
                     if p1_name != player['player_name']:
                         temp_name = p1_name
                         p1_name = p2_name
@@ -506,10 +496,9 @@ def output_player(player, p_num):
                             result_match = "Won versus"
                         elif result_match == "Won versus":
                             result_match = "Lost versus"
-                    out += "<tr><td style = \"word-break: break-all;\">%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (p1_name,
-                                                                                                                         result_match,
-                                                                                                                         p2_name,
-                                                                                                                         result_match_number)
+                    out += "<tr><td style = \"word-break: break-all;\">%s</td><td>%s</td><td>%s</td></tr>" % (result_match,
+                                                                                                              p2_name,
+                                                                                                              result_match_number)
             out += "</table></td>"
         else:
             str_out = player[row]
@@ -543,7 +532,10 @@ def html_output(player_df):
             table_output += "</tr>"
         table_output += output_player(player_df[i], i)
     table_output += "</table>"
-#    output += "<center><button onclick=\"setClipboard('%s')\">Copy MMRs</button></center><br>" % mmr_data
+    mmr_data = ""
+    for i in range(10):
+        mmr_data += COLORS_DOTA[i] + ":" + str(player_df[i]['solo_mmr']) + " "
+    output += "<center><button onclick=\"setClipboard('%s')\">Copy MMRs</button></center><br>" % mmr_data
     output += table_output
     output += "<center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
     output += "</body></html>"
