@@ -14,7 +14,7 @@ import urllib.request
 
 """
 TODO:
-Cleanup of display of paired players
+Fix copy buttons for data
 """
 
 """
@@ -25,7 +25,7 @@ match_id = "3418564446"
 """
 
 TOOL_TITLE = "sigmA's Team Detector 1.0"
-TEST = True
+TEST = False
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -223,6 +223,7 @@ def load_json(url):
 
 def load_heroes():
     """Loads in hero data to match hero number to name"""
+    print('Loading heroes')
     hero_dict = {}
     hero_load = load_json(STRATZ_API + "hero")
     for i in hero_load:
@@ -232,6 +233,7 @@ def load_heroes():
 
 def id_new_game():
     """Attempts to identify the most recent actual game of dota"""
+    print('IDing new game')
     with open(CURR_FILE) as my_file:
         curr_line = -1
         searching_game = True
@@ -275,8 +277,8 @@ def check_shared_match(match, player1, player2):
 
 def check_all_shared_matches(matches, player1, player2):
     vec = [["Won together", 0],
-           ['Lost to', 0],
-           ['Beat', 0],
+           ['Won versus', 0],
+           ['Lost versus', 0],
            ["Lost together", 0]]
     for m in matches:
         vec[check_shared_match(m, player1, player2)][1] += 1
@@ -286,6 +288,7 @@ def check_all_shared_matches(matches, player1, player2):
 
 def player_processor(player_id):
     """Pulls and creates all data"""
+    print('Processing player ID #' + str(player_id))
     player_dict = {'player_name': "",
                    'player_id': "",
                    'supports': 0,
@@ -384,6 +387,7 @@ def player_processor(player_id):
 
 def game_processor():
     """ Processes game """
+    print('Processing Game')
     global player_df
     curr_game = id_new_game()
     del curr_game[:3]
@@ -393,7 +397,6 @@ def game_processor():
     for i in range(10):
         player_df[i] = player_processor(curr_game[i][3:-1].split(":")[2])
         player_df[i]['color'] = COLORS_DOTA[i]
-
     for i in range(10):
         # Check shared matches
         for j in range(i + 1, 10):
@@ -405,17 +408,17 @@ def game_processor():
                                                           player_df[j]['player_id'])
                 shared_output = []
                 for stat in shared_matches:
-                    shared_output.append([player_df[j]['player_name'],
+                    shared_output.append([player_df[i]['player_name'],
+                                          player_df[j]['player_name'],
                                           stat[0],
                                           stat[1]])
                 player_df[i]['played_together'].append(shared_output)
-                for k in range(len(shared_output)):
-                    shared_output[k][0] = player_df[i]['player_name']
-                    if shared_output[k][1] == 'Won':
-                        shared_output[k][1] = 'Lost'
-                    elif shared_output[k][1] == 'Lost':
-                        shared_output[k][1] = 'Win'
-                
+#                for k in range(len(shared_output)):
+#                    shared_output[k][0] = player_df[i]['player_name']
+#                    if shared_output[k][1] == 'Won':
+#                        shared_output[k][1] = 'Lost'
+#                    elif shared_output[k][1] == 'Lost':
+#                        shared_output[k][1] = 'Win'
                 player_df[j]['played_together'].append(shared_output)
     html_output(player_df)
 
@@ -484,12 +487,29 @@ def output_player(player, p_num):
         elif row == "played_together":
             # Games played together
             out += "<td><table>"
-            out += "<thead><th>Player</th><th>Status</th><th>Games</th></thead>"
+            out += "<thead><th>Player 1</th><th>Status</th><th>Player 2</th><th>Count</th></thead>"
             for i in range(len(player['played_together'])):
                 for j in range(len(player['played_together'][i])):
-                    out += "<tr><td style = \"word-break: break-all;\">%s</td><td>%s</td><td>%s</td></tr>" % (player['played_together'][i][j][0],
-                                                                                                              player['played_together'][i][j][1],
-                                                                                                              player['played_together'][i][j][2])
+                   #["Won together", 0],
+                   #['Won versus', 0],
+                   #['Lost versus', 0],
+                   #["Lost together", 0]]
+                    p1_name = player['played_together'][i][j][0]
+                    p2_name = player['played_together'][i][j][1]
+                    result_match = player['played_together'][i][j][2]
+                    result_match_number = player['played_together'][i][j][3]
+                    if p1_name != player['player_name']:
+                        temp_name = p1_name
+                        p1_name = p2_name
+                        p2_name = temp_name
+                        if result_match == "Lost versus":
+                            result_match = "Won versus"
+                        elif result_match == "Won versus":
+                            result_match = "Lost versus"
+                    out += "<tr><td style = \"word-break: break-all;\">%s</td><td>%s</td><td>%s</td><td>%s</td></tr>" % (p1_name,
+                                                                                                                         result_match,
+                                                                                                                         p2_name,
+                                                                                                                         result_match_number)
             out += "</table></td>"
         else:
             str_out = player[row]
@@ -513,6 +533,7 @@ def html_output(player_df):
     output += javascript
     table_output = "<table>"
     for i in range(10):
+#        print('html output' + str(i))
         if i == 0 or i == 5:
             table_output += "</table><br><h2>%s</h2><table>" % FACTIONS[i == 5]
             table_output += "<tr>"
@@ -530,6 +551,7 @@ def html_output(player_df):
     html_file.write(output)
     html_file.close()
     webbrowser.open("sigmAsTeamDetector.html")
+    print('File created')
 
 
 def main():
@@ -548,7 +570,7 @@ def main():
                 if filepath is not None:
                     break
         CURR_FILE = os.path.join(filepath)
-        print('Folder found!')
+    print('File found!')
     HERO_DICT = load_heroes()
     pub = Checker()
     if TEST:
