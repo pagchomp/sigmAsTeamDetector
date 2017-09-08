@@ -276,10 +276,10 @@ def check_shared_match(match, player1, player2):
 
 
 def check_all_shared_matches(matches, player1, player2):
-    vec = [["Won together", 0],
+    vec = [['Won with', 0],
            ['Won versus', 0],
            ['Lost versus', 0],
-           ["Lost together", 0]]
+           ['Lost with', 0]]
     for m in matches:
         vec[check_shared_match(m, player1, player2)][1] += 1
     vec = [x for x in vec if not x[1] == 0]
