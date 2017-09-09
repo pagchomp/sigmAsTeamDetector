@@ -14,7 +14,11 @@ import urllib.request
 
 """
 TODO:
-Fix copy buttons for data
+    Recent Averages
+    Double check for division by 0 errors
+    2 seperate buttons for copying mmr info?
+    Java version?
+    Check if most recent game processed
 """
 
 """
@@ -160,6 +164,7 @@ function setClipboard(value) {
 }
 </script>
 """
+last_game = ""
 
 
 class Checker(object):
@@ -234,6 +239,7 @@ def load_heroes():
 def id_new_game():
     """Attempts to identify the most recent actual game of dota"""
     print('IDing new game')
+    global last_game
     with open(CURR_FILE) as my_file:
         curr_line = -1
         searching_game = True
@@ -387,33 +393,36 @@ def player_processor(player_id):
 def game_processor():
     """ Processes game """
     print('Processing Game')
-    global player_df
+    global player_df, last_game
     curr_game = id_new_game()
-    del curr_game[:3]
-    # Stored as strings
-    player_df = [{}for x in range(10)]
-    # (item for item in dicts if item["name"] == "Pam").next()
-    for i in range(10):
-        player_df[i] = player_processor(curr_game[i][3:-1].split(":")[2])
-        player_df[i]['color'] = COLORS_DOTA[i]
-    for i in range(10):
-        # Check shared matches
-        for j in range(i + 1, 10):
-            shared_matches = set(player_df[i]['recent_match_ids']) & \
-                             set(player_df[j]['recent_match_ids'])
-            if len(shared_matches) > 0:
-                shared_matches = check_all_shared_matches(shared_matches,
-                                                          player_df[i]['player_id'],
-                                                          player_df[j]['player_id'])
-                shared_output = []
-                for stat in shared_matches:
-                    shared_output.append([player_df[i]['player_name'],
-                                          player_df[j]['player_name'],
-                                          stat[0],
-                                          stat[1]])
-                player_df[i]['played_together'].append(shared_output)
-                player_df[j]['played_together'].append(shared_output)
-    html_output(player_df)
+    if curr_game[1] == last_game:
+        return 0
+    else:
+        last_game = str(curr_game[1])
+        del curr_game[:3]
+        # Stored as strings
+        player_df = [{}for x in range(10)]
+        for i in range(10):
+            player_df[i] = player_processor(curr_game[i][3:-1].split(":")[2])
+            player_df[i]['color'] = COLORS_DOTA[i]
+        for i in range(10):
+            # Check shared matches
+            for j in range(i + 1, 10):
+                shared_matches = set(player_df[i]['recent_match_ids']) & \
+                                 set(player_df[j]['recent_match_ids'])
+                if len(shared_matches) > 0:
+                    shared_matches = check_all_shared_matches(shared_matches,
+                                                              player_df[i]['player_id'],
+                                                              player_df[j]['player_id'])
+                    shared_output = []
+                    for stat in shared_matches:
+                        shared_output.append([player_df[i]['player_name'],
+                                              player_df[j]['player_name'],
+                                              stat[0],
+                                              stat[1]])
+                    player_df[i]['played_together'].append(shared_output)
+                    player_df[j]['played_together'].append(shared_output)
+        html_output(player_df)
 
 
 def output_player(player, p_num):
@@ -564,6 +573,7 @@ def main():
         CURR_FILE = os.path.join(filepath)
     print('File found!')
     HERO_DICT = load_heroes()
+    # Checks for new games
     pub = Checker()
     if TEST:
         pub.check()
