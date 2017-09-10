@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 """
 This script downloads data from the stratz api and uses it to create a
 dashboard for teammates/enemies in a game of Dota 2
@@ -15,10 +16,8 @@ import urllib.request
 """
 TODO:
     Recent Averages
-    Double check for division by 0 errors
     2 seperate buttons for copying mmr info?
     Java version?
-    Check if most recent game processed
 """
 
 """
@@ -29,7 +28,7 @@ match_id = "3418564446"
 """
 
 TOOL_TITLE = "sigmA's Team Detector 1.0"
-TEST = False
+TEST = True
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -373,6 +372,7 @@ def player_processor(player_id):
                     player_dict['lanes_win'][la['lane']] += la['winCount']
             player_dict['lanes_win'] = get_division(player_dict['lanes_win'],
                                                     player_dict['lanes_played'])
+            player_dict['matches'] = matches['total']
             for match in matches['results']:
                 player_dict['recent_match_ids'].append(str(match['id']))
         except:
@@ -396,6 +396,7 @@ def game_processor():
     global player_df, last_game
     curr_game = id_new_game()
     if curr_game[1] == last_game:
+        print('Game already processed')
         return 0
     else:
         last_game = str(curr_game[1])
@@ -525,13 +526,26 @@ def output_player(player, p_num):
 
 def html_output(player_df):
     """Outputs the data in HTML"""
-    output = "<!DOCTYPE html><html>"
+    output = "<!DOCTYPE html><html><meta charset='UTF-8'> "
     output += CSS
     output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
     output += javascript
     table_output = "<table>"
+    
+#    recent_win_avg = 0
+#    solo_mmr_avg = 0
+#    party_mmr_avg = 0
+#    recent_mmr_avg = 0
+#    total_matches_avg = 0
+#    ranked_matches_avg = 0
+#    activity_level_avg = 0
+#    impact_level_avg = 0
+#    party_percent_avg = 0
+#    support_avg = 0
+#    core_avg = 0
+#    unique_heroes = 0
+    
     for i in range(10):
-#        print('html output' + str(i))
         if i == 0 or i == 5:
             table_output += "</table><br><h2>%s</h2><table>" % FACTIONS[i == 5]
             table_output += "<tr>"
@@ -540,6 +554,8 @@ def html_output(player_df):
                                                                 str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
             table_output += "</tr>"
         table_output += output_player(player_df[i], i)
+        if i == 4 or i == 9:
+           
     table_output += "</table>"
     mmr_data = ""
     for i in range(10):
@@ -548,10 +564,12 @@ def html_output(player_df):
     output += table_output
     output += "<center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
     output += "</body></html>"
-    html_file = open("sigmAsTeamDetector.html", "w", encoding="utf-8")
+    html_file = open("sigmAsTeamDetector.html", "w", encoding="utf8")
+#    html_file = open("sigmAsTeamDetector.html", "w")
     html_file.write(output)
     html_file.close()
     webbrowser.open("sigmAsTeamDetector.html")
+    print(output)
     print('File created')
 
 
