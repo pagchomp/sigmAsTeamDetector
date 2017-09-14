@@ -15,8 +15,9 @@ import urllib.request
 
 """
 TODO:
-    Recent Averages
-    2 seperate buttons for copying mmr info?
+    Copy button for summary stats
+    Make a class for individual heroes/radiant/dire
+    
     Java version?
 """
 
@@ -27,8 +28,9 @@ player_id = "115392625"
 match_id = "3418564446"
 """
 
-TOOL_TITLE = "sigmA's Team Detector 1.0"
-TEST = True
+TOOL_TITLE = "sigmA's Team Detector 1.1"
+#TEST = True
+TEST = False
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -293,7 +295,7 @@ def check_all_shared_matches(matches, player1, player2):
 
 def player_processor(player_id):
     """Pulls and creates all data"""
-    print('Processing player ID #' + str(player_id))
+#    print('Processing player ID #' + str(player_id))
     player_dict = {'player_name': "",
                    'player_id': "",
                    'supports': 0,
@@ -392,7 +394,6 @@ def player_processor(player_id):
 
 def game_processor():
     """ Processes game """
-    print('Processing Game')
     global player_df, last_game
     curr_game = id_new_game()
     if curr_game[1] == last_game:
@@ -467,26 +468,29 @@ def output_player(player, p_num):
             lane_out = "<td><table>"
             lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
             for lane in range(5):
-                lane_played = to_percent(player['lanes_played'][lane] /
-                                         player['match_count'])
-                highlight_color_win = ""
-                if player['lanes_win'][lane] >= 60:
-                    highlight_color_win = 'style="color:green"'
-                elif player['lanes_win'][lane] <= 40 and player['lanes_played'][lane] != 0:
-                    highlight_color_win = 'style="color:red"'
-                if lane_played > 25:
-                    row_style = " style='font-weight:800'"
+                if player['match_count'] == 0:
+                    lane_out += "<tr></tr>"
                 else:
-                    row_style = ""
-                if lane_played > 0:
-                    copy_data += LANES[lane] + ": " + \
-                                 str(player['lanes_played'][lane]) + \
-                                 "-" + str(player['lanes_win'][lane]) + "% "
-                lane_out += "<tr %s><td>%s</td><td>%s%%</td><td %s>%s%%</td></tr>" % (row_style,
-                                                                                     LANES[lane],
-                                                                                     str(lane_played),
-                                                                                     highlight_color_win,
-                                                                                     str(player['lanes_win'][lane]))
+                    lane_played = to_percent(player['lanes_played'][lane] /
+                                             player['match_count'])
+                    highlight_color_win = ""
+                    if player['lanes_win'][lane] >= 60:
+                        highlight_color_win = 'style="color:green"'
+                    elif player['lanes_win'][lane] <= 40 and player['lanes_played'][lane] != 0:
+                        highlight_color_win = 'style="color:red"'
+                    if lane_played > 25:
+                        row_style = " style='font-weight:800'"
+                    else:
+                        row_style = ""
+                    if lane_played > 0:
+                        copy_data += LANES[lane] + ": " + \
+                                     str(player['lanes_played'][lane]) + \
+                                     "-" + str(player['lanes_win'][lane]) + "% "
+                    lane_out += "<tr %s><td>%s</td><td>%s%%</td><td %s>%s%%</td></tr>" % (row_style,
+                                                                                         LANES[lane],
+                                                                                         str(lane_played),
+                                                                                         highlight_color_win,
+                                                                                         str(player['lanes_win'][lane]))
             out += lane_out + "</table><center><button onclick=\"setClipboard('%s')\">Copy</button></center></td>" % copy_data
         elif row == "played_together":
             # Games played together
@@ -524,6 +528,65 @@ def output_player(player, p_num):
     return out
 
 
+def summarize_team(player_df):
+    """ I should probably make a class and make radiant and dire as well as player just instances of that class """
+    radiant = {"recent_win_avg" : 0,
+        "solo_mmr_avg" : 0,
+        "party_mmr_avg" : 0,
+        "recent_mmr_avg_avg" : 0,
+        "total_matches_avg" : 0,
+        "ranked_matches_avg" : 0,
+        "activity_level_avg" : 0,
+        "impact_level_avg" : 0,
+        "party_percent_avg" : 0,
+        "support_avg" : 0,
+        "core_avg" : 0,
+        "unique_heroes" : 0
+    }
+    dire = {"recent_win_avg" : 0,
+        "solo_mmr_avg" : 0,
+        "party_mmr_avg" : 0,
+        "recent_mmr_avg_avg" : 0,
+        "total_matches_avg" : 0,
+        "ranked_matches_avg" : 0,
+        "activity_level_avg" : 0,
+        "impact_level_avg" : 0,
+        "party_percent_avg" : 0,
+        "support_avg" : 0,
+        "core_avg" : 0,
+        "unique_heroes" : 0
+    }
+    for faction in [radiant, dire]:
+        faction_success = 0
+        if faction == radiant:
+            c = 0
+        else:
+            c = 5
+        for i in range(c + 0, c + 5):
+            try:
+                faction['recent_win_avg'] += player_df[i]['recent_win_pct']
+                faction['solo_mmr_avg'] += player_df[i]['solo_mmr']
+                faction['party_mmr_avg'] += player_df[i]['party_mmr']
+                faction['recent_mmr_avg_avg'] += player_df[i]['recent_mmr_avg']
+                faction['total_matches_avg'] += player_df[i]['matches']
+                faction['ranked_matches_avg'] += player_df[i]['ranked_pct']
+                faction['activity_level_avg'] += [j for j, k in enumerate(ACTIVITY) if k == player_df[i]['activity']][0]
+                faction['impact_level_avg'] += [j for j, k in enumerate(['Low', 'Medium', 'High']) if k == player_df[i]['impact']][0]
+                faction['party_percent_avg'] += player_df[i]['party_pct']
+                faction['support_avg'] += player_df[i]['supports']
+                faction['core_avg'] += player_df[i]['cores']
+                faction['unique_heroes'] += player_df[i]['unique_heroes']
+                faction_success += 1
+            except:
+                print('no value for ' + str(i))
+        if faction_success > 0:
+            for k, v in faction.items():
+                faction[k] = round(v / faction_success, 2)
+            faction['activity_level_avg'] = ACTIVITY[int(round(faction['activity_level_avg'], 0))]
+            faction['impact_level_avg'] = ['Low', 'Medium', 'High'][int(round(faction['impact_level_avg'], 0))]
+    return [radiant, dire]
+
+
 def html_output(player_df):
     """Outputs the data in HTML"""
     output = "<!DOCTYPE html><html><meta charset='UTF-8'> "
@@ -531,20 +594,7 @@ def html_output(player_df):
     output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
     output += javascript
     table_output = "<table>"
-    
-#    recent_win_avg = 0
-#    solo_mmr_avg = 0
-#    party_mmr_avg = 0
-#    recent_mmr_avg = 0
-#    total_matches_avg = 0
-#    ranked_matches_avg = 0
-#    activity_level_avg = 0
-#    impact_level_avg = 0
-#    party_percent_avg = 0
-#    support_avg = 0
-#    core_avg = 0
-#    unique_heroes = 0
-    
+    radiant, dire = summarize_team(player_df)
     for i in range(10):
         if i == 0 or i == 5:
             table_output += "</table><br><h2>%s</h2><table>" % FACTIONS[i == 5]
@@ -555,7 +605,26 @@ def html_output(player_df):
             table_output += "</tr>"
         table_output += output_player(player_df[i], i)
         if i == 4 or i == 9:
-           
+            if i == 4:
+                faction = radiant
+            else:
+                faction = dire
+            faction_outputs = [str(faction["recent_win_avg"]) + "%",
+                               faction["solo_mmr_avg"],
+                               faction["party_mmr_avg"],
+                               faction["recent_mmr_avg_avg"],
+                               faction["total_matches_avg"],
+                               str(faction["ranked_matches_avg"]) + "%",
+                               faction["activity_level_avg"],
+                               faction["impact_level_avg"],
+                               str(faction["party_percent_avg"]) + "%",
+                               str(faction["support_avg"]) + "%",
+                               str(faction["core_avg"]) + "%",
+                               faction["unique_heroes"]]
+            table_output += "<tr><td><b>TEAM AVERAGES:</b></td><td></td>"
+            for j in faction_outputs:
+                table_output +="<td>%s</td>" % j
+            table_output += "<td></td>" * 3
     table_output += "</table>"
     mmr_data = ""
     for i in range(10):
@@ -565,11 +634,10 @@ def html_output(player_df):
     output += "<center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
     output += "</body></html>"
     html_file = open("sigmAsTeamDetector.html", "w", encoding="utf8")
-#    html_file = open("sigmAsTeamDetector.html", "w")
     html_file.write(output)
     html_file.close()
     webbrowser.open("sigmAsTeamDetector.html")
-    print(output)
+#    print(output)
     print('File created')
 
 
