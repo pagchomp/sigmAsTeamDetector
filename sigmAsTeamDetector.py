@@ -17,7 +17,6 @@ import urllib.request
 TODO:
     Copy button for summary stats
     Make a class for individual heroes/radiant/dire
-    
     Java version?
 """
 
@@ -28,9 +27,9 @@ player_id = "115392625"
 match_id = "3418564446"
 """
 
-TOOL_TITLE = "sigmA's Team Detector 1.1"
-#TEST = True
+TOOL_TITLE = "sigmA's Team Detector 1.2"
 TEST = False
+#TEST = False
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -124,8 +123,13 @@ th {
     text-shadow: 1px 1px 1px #fff;
 }
 table:first-child {
-  font: normal 10px Arial, sans-serif;
-  text-align:center;
+    font: normal 10px Arial, sans-serif;
+    text-align:center;
+}
+
+#header-fixed {
+    position: sticky;
+    top: 100px;
 }
 
 .Blue{background-color: #2E6AE6;}
@@ -153,6 +157,21 @@ table:first-child {
 </style>
 """
 
+#<script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
+#var tableOffset = $("#table-1").offset().top;
+#var $header = $("#table-1 > thead").clone();
+#var $fixedHeader = $("#header-fixed").append($header);
+#
+#$(window).bind("scroll", function() {
+#    var offset = $(this).scrollTop();
+#    if (offset >= tableOffset && $fixedHeader.is(":hidden")) {
+#        $fixedHeader.show();
+#    }
+#    else if (offset < tableOffset) {
+#        $fixedHeader.hide();
+#    }
+#});
+
 javascript = """<script>
 function setClipboard(value) {
     var tempInput = document.createElement("input");
@@ -162,7 +181,7 @@ function setClipboard(value) {
     tempInput.select();
     document.execCommand("copy");
     document.body.removeChild(tempInput);
-}
+};
 </script>
 """
 last_game = ""
@@ -593,14 +612,19 @@ def html_output(player_df):
     output += CSS
     output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
     output += javascript
-    table_output = "<table>"
+    table_output = ""
     radiant, dire = summarize_team(player_df)
     for i in range(10):
         if i == 0 or i == 5:
-            table_output += "</table><br><h2>%s</h2><table>" % FACTIONS[i == 5]
-            table_output += "<tr>"
+            if i == 0:
+                table_output += "<br><h2>%s</h2><table>" % FACTIONS[0]
+                table_output += "<tr id = \"header-fixed\">"
+            else:
+                table_output += "</table><table></table><br><h2>%s</h2><table>" % FACTIONS[1]
+                table_output += "<tr>"
+            
             for curr_col in range(len(ROW_ORDER)):
-                table_output += "<td width = '%s%%'>%s</td>" % (str(COLUMN_WIDTHS[curr_col]), 
+                table_output += "<th width = '%s%%'>%s</th>" % (str(COLUMN_WIDTHS[curr_col]), 
                                                                 str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
             table_output += "</tr>"
         table_output += output_player(player_df[i], i)
