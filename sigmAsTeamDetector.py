@@ -27,9 +27,9 @@ player_id = "115392625"
 match_id = "3418564446"
 """
 
-TOOL_TITLE = "sigmA's Team Detector 1.2"
+TOOL_TITLE = "sigmA's Team Detector 1.3"
 TEST = False
-#TEST = False
+# TEST = True
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -40,11 +40,11 @@ ACTIVITY = ["None", "Very Low", "Low", "Medium",
             "High", "Very High", "Intense"]
 ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'solo_mmr',
              'party_mmr', 'recent_mmr_avg', 'matches', 'ranked_pct',
-             'activity', 'impact', 'party_pct', 'supports', 'cores',
+             'activity', 'impact', 'party_pct', 'supports',
              'unique_heroes', 'heroes', 'lanes_played', 'played_together']
 IMPACT_UPPER = 109
 IMPACT_LOWER = 91
-COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 19, 19, 19]
+COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 14, 14, 14]
 FACTIONS = ['RADIANT', 'DIRE']
 PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'supports': "Support",
@@ -72,15 +72,27 @@ h1 {
     text-align: center;
 }
 a.title{
-        text-decoration: none;
-        color: #111;
-        font-family: 'Open Sans Condensed', sans-serif;
-        font-size: 64px;
-        font-weight: 700;
-        line-height: 64px;
-        margin: 0 0 0;
-        padding: 20px 30px;
-        text-align: center;
+    text-decoration: none;
+    color: #111;
+    font-family: 'Open Sans Condensed', sans-serif;
+    font-size: 32px;
+    font-weight: 700;
+    line-height: 32px;
+    margin: 0 0 0;
+    padding: 20px 30px;
+    text-align: center;
+    text-shadow: 0 1px 0 #ccc,
+             0 2px 0 #c9c9c9,
+             0 3px 0 #bbb,
+             0 4px 0 #b9b9b9,
+             0 5px 0 #aaa,
+             0 6px 1px rgba(0,0,0,.1),
+             0 0 5px rgba(0,0,0,.1),
+             0 1px 3px rgba(0,0,0,.3),
+             0 3px 5px rgba(0,0,0,.2),
+             0 5px 10px rgba(0,0,0,.25),
+             0 10px 10px rgba(0,0,0,.2),
+             0 20px 20px rgba(0,0,0,.15);
 }
 h2 {
     text-align: center;
@@ -105,7 +117,7 @@ table {
     border-right: none;
 }
 td {
-
+    vertical-align: middle;
     border-top: solid 1px #DDEEEE;
     color: #333;
     padding: 10px;
@@ -127,11 +139,6 @@ table:first-child {
     text-align:center;
 }
 
-#header-fixed {
-    position: sticky;
-    top: 100px;
-}
-
 .Blue{background-color: #2E6AE6;}
 .Teal{background-color: #5DE6AD;}
 .Purple{background-color: #AD00AD;}
@@ -144,35 +151,35 @@ table:first-child {
 .Brown{background-color: #956000;}
 
 .button {
-  font: bold 12px Arial;
-  text-decoration: none;
-  background-color: #EEEEEE;
-  color: #333333;
-  padding: 2px 6px 2px 6px;
-  border-top: 1px solid #CCCCCC;
-  border-right: 1px solid #333333;
-  border-bottom: 1px solid #333333;
-  border-left: 1px solid #CCCCCC;
+    text-decoration: none;
+    font: bold 12px Arial;
+    white-space: normal;
+    display: block;
+    background-color: #EEEEEE;
+    padding-left: .25rem;
+    padding-right: .25rem;
+    margin-right: .25rem;
+    color: black;
+    border-width: 0;
+    max-width: 10rem;
+    min-height: 1rem;
+    vertical-align: top;
+    font-weight: bold;
+    box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19);
 }
-</style>
-"""
 
-#<script src="http://code.jquery.com/jquery-latest.min.js" type="text/javascript"></script>
-#var tableOffset = $("#table-1").offset().top;
-#var $header = $("#table-1 > thead").clone();
-#var $fixedHeader = $("#header-fixed").append($header);
-#
-#$(window).bind("scroll", function() {
-#    var offset = $(this).scrollTop();
-#    if (offset >= tableOffset && $fixedHeader.is(":hidden")) {
-#        $fixedHeader.show();
-#    }
-#    else if (offset < tableOffset) {
-#        $fixedHeader.hide();
-#    }
-#});
+.hide-scroll {
+    overflow: hidden;
+}
 
-javascript = """<script>
+.viewport {
+    overflow: auto;
+    height: 500px;
+    margin-right: -16px;
+}
+</style>"""
+
+JAVASCRIPT = """<script>
 function setClipboard(value) {
     var tempInput = document.createElement("input");
     tempInput.style = "position: absolute; left: -1000px; top: -1000px";
@@ -182,8 +189,8 @@ function setClipboard(value) {
     document.execCommand("copy");
     document.body.removeChild(tempInput);
 };
-</script>
-"""
+</script>"""
+
 last_game = ""
 
 
@@ -445,20 +452,19 @@ def game_processor():
                     player_df[j]['played_together'].append(shared_output)
         html_output(player_df)
 
-
 def output_player(player, p_num):
     out = "<tr>"
     for row in ROW_ORDER:
         if row == "avatar":
             # Draw pictures
-            out += "<td><img src = '%s'></td>" % str(player[row])
+            out += "<td width = '%s%%'><img src = '%s'></td>" % (str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "avatar"][0]), str(player[row]))
         elif row == "player_name":
             # Colors
-            out += "<td class = \"%s\" style = \"word-break: break-all;\">" \
-            "<a href = https://stratz.com/player/%s class = 'button' target='_blank'>%s</a></td>" % (player['color'], player['player_id'], player['player_name'])
+            out += "<td width = '%s%%' class = \"%s\" style = \"word-break: break-all;\">" \
+            "<a href = https://stratz.com/player/%s class = 'button' target='_blank'>%s</a></td>" % (str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "player_name"][0]), player['color'], player['player_id'], player['player_name'])
         elif row == "heroes":
             # Heroes
-            out += "<td>"
+            out += "<td width = '%s%%'>" % str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "heroes"][0])
             if len(player['heroes']) >= 1:
                 hero_out = "<table>"
                 hero_out += "<thead><th>Hero</th><th>#</th><th>Win</th></thead>"
@@ -484,7 +490,7 @@ def output_player(player, p_num):
         elif row == "lanes_played":
             # Lanes data
             copy_data = COLORS_DOTA[p_num] + " in %s games: " % RECENT_GAMES
-            lane_out = "<td><table>"
+            lane_out = "<td width = '%s%%'><table>" % str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "lanes_played"][0])
             lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
             for lane in range(5):
                 if player['match_count'] == 0:
@@ -513,7 +519,7 @@ def output_player(player, p_num):
             out += lane_out + "</table><center><button onclick=\"setClipboard('%s')\">Copy</button></center></td>" % copy_data
         elif row == "played_together":
             # Games played together
-            out += "<td><table>"
+            out += "<td width = '%s%%'><table>" % str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "played_together"][0])
             out += "<thead><th>Status</th><th>Player 2</th><th>Count</th></thead>"
             for i in range(len(player['played_together'])):
                 for j in range(len(player['played_together'][i])):
@@ -543,7 +549,8 @@ def output_player(player, p_num):
                 elif str_out < 40:
                     highlight_color = 'style="color:red"'
                 str_out = str(str_out) + "%"
-            out += "<td %s>%s</td>" % (highlight_color, str(str_out))
+            out += "<td width = '%s%%' %s>%s</td>" % (str(COLUMN_WIDTHS[1]), highlight_color, str(str_out))
+    out += "</tr>"
     return out
 
 
@@ -611,22 +618,21 @@ def html_output(player_df):
     output = "<!DOCTYPE html><html><meta charset='UTF-8'> "
     output += CSS
     output += "<body><title>%s</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">%s</a></h1>" % (TOOL_TITLE, TOOL_TITLE)
-    output += javascript
+    output += JAVASCRIPT
     table_output = ""
     radiant, dire = summarize_team(player_df)
     for i in range(10):
         if i == 0 or i == 5:
             if i == 0:
-                table_output += "<br><h2>%s</h2><table>" % FACTIONS[0]
-                table_output += "<tr id = \"header-fixed\">"
+                table_output += "<h2>%s</h2><table>" % FACTIONS[0]
+                table_output += "<tr>"
             else:
                 table_output += "</table><table></table><br><h2>%s</h2><table>" % FACTIONS[1]
                 table_output += "<tr>"
-            
             for curr_col in range(len(ROW_ORDER)):
-                table_output += "<th width = '%s%%'>%s</th>" % (str(COLUMN_WIDTHS[curr_col]), 
+                table_output += "<th width = '%s%%'>%s</th>" % (str(COLUMN_WIDTHS[curr_col]),
                                                                 str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
-            table_output += "</tr>"
+            table_output += "</tr></table><div class = \"hide-scroll\"><div class = \"viewport\"><table>"
         table_output += output_player(player_df[i], i)
         if i == 4 or i == 9:
             if i == 4:
@@ -643,19 +649,19 @@ def html_output(player_df):
                                faction["impact_level_avg"],
                                str(faction["party_percent_avg"]) + "%",
                                str(faction["support_avg"]) + "%",
-                               str(faction["core_avg"]) + "%",
                                faction["unique_heroes"]]
-            table_output += "<tr><td><b>TEAM AVERAGES:</b></td><td></td>"
-            for j in faction_outputs:
-                table_output +="<td>%s</td>" % j
-            table_output += "<td></td>" * 3
+            table_output += "</table></div></div><table><tr><td width = '%s%%' align='center'><b>TEAM AVERAGES:</b></td><td width = '%s%%' align='center'></td>" % (COLUMN_WIDTHS[0], COLUMN_WIDTHS[1])
+            for j, k in enumerate(faction_outputs):
+                table_output += "<td width = '%s%%' align='center'>%s</td>" % (str(COLUMN_WIDTHS[j + 2]), k)
+            table_output += ("<td width =' %s%%' align='center'></td>" % str(COLUMN_WIDTHS[len(COLUMN_WIDTHS) - 1])) * 3
+            table_output += "</tr>"
     table_output += "</table>"
     mmr_data = ""
     for i in range(10):
         mmr_data += COLORS_DOTA[i] + ":" + str(player_df[i]['solo_mmr']) + " "
-    output += "<center><button onclick=\"setClipboard('%s')\">Copy MMRs</button></center><br>" % mmr_data
+    output += "<center><button onclick=\"setClipboard('%s')\">Copy MMRs</button></center>" % mmr_data
     output += table_output
-    output += "<center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
+    output += "</div></div><center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
     output += "</body></html>"
     html_file = open("sigmAsTeamDetector.html", "w", encoding="utf8")
     html_file.write(output)
