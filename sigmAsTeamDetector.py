@@ -353,11 +353,9 @@ def player_processor(player_id):
                              player_dict['player_id'] +
                              "/behaviorChart?take=" +
                              str(RECENT_GAMES))
-        matches = load_json(STRATZ_API +
-                            "match/?steamid=" +
-                            player_dict['player_id'] +
-                            "&take=" +
-                            str(RECENT_GAMES))
+        player_dict['player_id'] + "&take=" + str(RECENT_GAMES))
+        matches = load_json(STRATZ_API + "player/" + player_dict['player_id'] +
+                            "/matches?take=" + str(RECENT_GAMES))
         try:
             player_dict['player_name'] = player['name']
             player_dict['avatar'] = player['avatar']
