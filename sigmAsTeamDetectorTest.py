@@ -9,10 +9,8 @@ Created on Fri Aug  4 11:30:35 2017
 """
 import os
 import time
-import json
 import webbrowser
-import urllib.request
-from multiprocessing import Pool
+import requests
 
 """
 TODO:
@@ -29,8 +27,8 @@ match_id = "3418564446"
 """
 
 TOOL_TITLE = "sigmA's Team Detector 1.4"
-#TEST = False
-TEST = True
+TEST = False
+#TEST = True
 
 RECENT_GAMES = 100
 STRATZ_API = "https://api.stratz.com/api/v1/"
@@ -39,13 +37,16 @@ COLORS_DOTA = ["Blue", "Teal", "Purple", "Yellow", "Orange",
 LANES = ["Roaming", "Safe Lane", "Mid", "Offlane", "Jungle"]
 ACTIVITY = ["None", "Very Low", "Low", "Medium",
             "High", "Very High", "Intense"]
-ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'solo_medal', 'matches', 'ranked_pct',
-             'activity', 'impact', 'party_pct', 'supports',
-             'unique_heroes', 'heroes', 'lanes_played', 'played_together']
+ROW_ORDER = ['player_name', 'avatar', 'recent_win_pct', 'solo_medal',
+             'matches', 'ranked_pct', 'activity', 'impact', 'party_pct',
+             'supports', 'unique_heroes', 'heroes', 'lanes_played',
+             'played_together']
 IMPACT_UPPER = 109
 IMPACT_LOWER = 91
 COLUMN_WIDTHS = [10, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 14, 14, 14]
 FACTIONS = ['RADIANT', 'DIRE']
+MEDALS = ['Herald', 'Guardian', 'Crusader', 'Archon', 'Legend', 'Ancient',
+          'Divine']
 PROPER_NAMES_DICT = {'player_name': "Player Name",
                      'supports': "Support",
                      'cores': "Core",
@@ -248,7 +249,7 @@ def find_file(folder):
 
 
 def load_json(url):
-    return json.loads(urllib.request.urlopen(url).read().decode('utf-8'))
+    return requests.get(url, headers={'Connection': 'close'}).json()
 
 
 def load_heroes():
@@ -316,10 +317,11 @@ def check_all_shared_matches(matches, player1, player2):
     vec = [x for x in vec if not x[1] == 0]
     return vec
 
-# pooling
+
 def player_processor(player_id):
     """Pulls and creates all data"""
-#    print('Processing player ID #' + str(player_id))
+    if TEST:
+        print('Processing player ID #' + str(player_id))
     player_dict = {'player_name': "",
                    'player_id': "",
                    'supports': 0,
@@ -348,7 +350,6 @@ def player_processor(player_id):
                              player_dict['player_id'] +
                              "/behaviorChart?take=" +
                              str(RECENT_GAMES))
-        # Fix for update is here
         matches = load_json(STRATZ_API + "player/" + player_dict['player_id'] +
                             "/matches?take=" + str(RECENT_GAMES))
         try:
@@ -399,11 +400,6 @@ def player_processor(player_id):
             pass
     except:
         pass
-#    try:
-#    try:
-#        player_dict['party_mmr'] = player['mmrDetail']['partyValue']
-#    except Exception as e:
-#        pass
     try:
         player_dict['solo_medal'] = player['rankDetail']['rank']
     except Exception as e:
@@ -423,9 +419,16 @@ def game_processor():
         del curr_game[:3]
         # Stored as strings
         player_df = [{}for x in range(10)]
+        curr_game = [x[3:-1].split(":")[2] for x in curr_game]
+        if TEST:
+            start = time.time()
         for i in range(10):
-            player_df[i] = player_processor(curr_game[i][3:-1].split(":")[2])
+            player_df[i] = player_processor(curr_game[i])
             player_df[i]['color'] = COLORS_DOTA[i]
+        end = time.time()
+        if TEST:
+            print('API Call Time ' + str(end - start))
+            start = time.time()
         for i in range(10):
             # Check shared matches
             for j in range(i + 1, 10):
@@ -443,6 +446,9 @@ def game_processor():
                                               stat[1]])
                     player_df[i]['played_together'].append(shared_output)
                     player_df[j]['played_together'].append(shared_output)
+        if TEST:
+            end = time.time()
+            print('Check if Previous Teammates ' + str(end - start))
         html_output(player_df)
 
 def output_player(player, p_num):
@@ -450,18 +456,18 @@ def output_player(player, p_num):
     for row in ROW_ORDER:
         if row == "avatar":
             # Draw pictures
-            out += "<td width = '{}%%'><img src = '{}'></td>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "avatar"][0]),
+            out += "<td width = '{}%'><img src = '{}'></td>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "avatar"][0]),
                                  str(player[row]))
         elif row == "player_name":
             # Colors
-            out += "<td width = '{}%%' class = \"{}\" style = \"word-break: break-all;\">" \
+            out += "<td width = '{}%' class = \"{}\" style = \"word-break: break-all;\">" \
             "<a href = https://stratz.com/player/{} class = 'button' target='_blank'>{}</a></td>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "player_name"][0]),
                                                  player['color'], 
                                                  player['player_id'], 
                                                  player['player_name'])
         elif row == "heroes":
             # Heroes
-            out += "<td width = '{}%%'>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "heroes"][0]))
+            out += "<td width = '{}%'>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "heroes"][0]))
             if len(player['heroes']) >= 1:
                 hero_out = "<table>"
                 hero_out += "<thead><th>Hero</th><th>#</th><th>Win</th></thead>"
@@ -477,7 +483,7 @@ def output_player(player, p_num):
                     copy_data += hero[0] + "-"
                     hero_out += "</td><td>" + str(hero[1])
                     copy_data += str(hero[1]) + "-"
-                    hero_out += "</td><td {}>{}%%".format(highlight_color, str(hero[2]))
+                    hero_out += "</td><td {}>{}%".format(highlight_color, str(hero[2]))
                     copy_data += str(hero[2]) + "% "
                     hero_out += "</td><tr>"
                 hero_out += "</table><center><button onclick=\"setClipboard('{}')\">Copy</button></center></td>".format(copy_data)
@@ -487,7 +493,7 @@ def output_player(player, p_num):
         elif row == "lanes_played":
             # Lanes data
             copy_data = COLORS_DOTA[p_num] + " in {} games: ".format(RECENT_GAMES)
-            lane_out = "<td width = '{}%%'><table>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "lanes_played"][0]))
+            lane_out = "<td width = '{}%'><table>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "lanes_played"][0]))
             lane_out += "<thead><th>Lane</th><th>Play</th><th>Win</th></thead>"
             for lane in range(5):
                 if player['match_count'] == 0:
@@ -508,7 +514,7 @@ def output_player(player, p_num):
                         copy_data += LANES[lane] + ": " + \
                                      str(player['lanes_played'][lane]) + \
                                      "-" + str(player['lanes_win'][lane]) + "% "
-                    lane_out += "<tr {}><td>{}</td><td>{}%%</td><td {}>{}%%</td></tr>".format(row_style,
+                    lane_out += "<tr {}><td>{}</td><td>{}%</td><td {}>{}%</td></tr>".format(row_style,
                                                                                          LANES[lane],
                                                                                          str(lane_played),
                                                                                          highlight_color_win,
@@ -516,7 +522,7 @@ def output_player(player, p_num):
             out += lane_out + "</table><center><button onclick=\"setClipboard('{}')\">Copy</button></center></td>".format(copy_data)
         elif row == "played_together":
             # Games played together
-            out += "<td width = '{}%%'><table>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "played_together"][0]))
+            out += "<td width = '{}%'><table>".format(str([COLUMN_WIDTHS[i] for i, x in enumerate(ROW_ORDER) if x == "played_together"][0]))
             out += "<thead><th>Status</th><th>Player 2</th><th>Count</th></thead>"
             for i in range(len(player['played_together'])):
                 for j in range(len(player['played_together'][i])):
@@ -536,6 +542,12 @@ def output_player(player, p_num):
                                                                                                               p2_name,
                                                                                                               result_match_number)
             out += "</table></td>"
+        elif row == "solo_medal":
+            if player[row] >= 10:
+                str_out = MEDALS[int(str(player[row])[0])-1] + ' {}'.format(str(player[row])[1])
+                out += "<td width = '{}%'>{}</td>".format(str(COLUMN_WIDTHS[1]), str(str_out))
+            else:
+                out += "<td width = '{}%'></td>".format(str(COLUMN_WIDTHS[1]))
         else:
             str_out = player[row]
             # Rows with percents in them
@@ -546,7 +558,7 @@ def output_player(player, p_num):
                 elif str_out < 40:
                     highlight_color = 'style="color:red"'
                 str_out = str(str_out) + "%"
-            out += "<td width = '{}%%' {}>{}</td>".format(str(COLUMN_WIDTHS[1]), highlight_color, str(str_out))
+            out += "<td width = '{}%' {}>{}</td>".format(str(COLUMN_WIDTHS[1]), highlight_color, str(str_out))
     out += "</tr>"
     return out
 
@@ -621,9 +633,10 @@ def html_output(player_df):
                 table_output += "</table><table></table><br><h2>{}</h2><table>".format(FACTIONS[1])
                 table_output += "<tr>"
             for curr_col in range(len(ROW_ORDER)):
-                table_output += "<th width = '{}%%'>{}</th>".format(str(COLUMN_WIDTHS[curr_col]),
+                table_output += "<th width = '{}%'>{}</th>".format(str(COLUMN_WIDTHS[curr_col]),
                                                                 str(PROPER_NAMES_DICT[ROW_ORDER[curr_col]]))
-            table_output += "</tr></table><div class = \"hide-scroll\"><div class = \"viewport\"><table>"
+            table_output += "</tr></table><div class = \"hide-scroll\">" + \
+                            "<div class = \"viewport\"><table>"
         table_output += output_player(player_df[i], i)
         if i == 4 or i == 9:
             if i == 4:
@@ -639,11 +652,11 @@ def html_output(player_df):
                                str(faction["party_percent_avg"]) + "%",
                                str(faction["support_avg"]) + "%",
                                faction["unique_heroes"]]
-            table_output += "</table></div></div><table><tr><td width = '{}%%' align='center'><b>TEAM AVERAGES:</b></td><td width = '{}%%' align='center'></td>".format(COLUMN_WIDTHS[0], 
+            table_output += "</table></div></div><table><tr><td width = '{}%' align='center'><b>TEAM AVERAGES:</b></td><td width = '{}%' align='center'></td>".format(COLUMN_WIDTHS[0], 
                                                                          COLUMN_WIDTHS[1])
             for j, k in enumerate(faction_outputs):
-                table_output += "<td width = '{}%%' align='center'>{}</td>".format(str(COLUMN_WIDTHS[j + 2]), k)
-            table_output += ("<td width =' {}%%' align='center'></td>".format(str(COLUMN_WIDTHS[len(COLUMN_WIDTHS) - 1])) * 3)
+                table_output += "<td width = '{}%' align='center'>{}</td>".format(str(COLUMN_WIDTHS[j + 2]), k)
+            table_output += ("<td width =' {}%' align='center'></td>".format(str(COLUMN_WIDTHS[len(COLUMN_WIDTHS) - 1])) * 3)
             table_output += "</tr>"
     table_output += "</table>"
     mmr_data = ""
@@ -651,7 +664,9 @@ def html_output(player_df):
         mmr_data += COLORS_DOTA[i] + ":" + str(player_df[i]['solo_medal']) + " "
     output += "<center><button onclick=\"setClipboard('{}')\">Copy MMRs</button></center>".format(mmr_data)
     output += table_output
-    output += "</div></div><center>Powered by<br><a href = 'http://stratz.com'><img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\"></a></center>"
+    output += "</div></div><center>Powered by<br><a href = 'http://stratz.com'>" + \
+              "<img src = \"https://stratz.com/assets/img/stratz/Stratz_Icon_Full.53650306.png\">" + \
+              "</a></center>"
     output += "</body></html>"
     html_file = open("sigmAsTeamDetector.html", "w", encoding="utf8")
     html_file.write(output)
@@ -692,6 +707,7 @@ def main():
                 print('Error Parsing Game: {}'.format(str(e)))
                 time.sleep(2)
                 main()
+
 
 if __name__ == "__main__":
     main()
