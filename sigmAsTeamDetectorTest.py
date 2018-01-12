@@ -596,7 +596,9 @@ def summarize_team(player_df):
         for i in range(c + 0, c + 5):
             try:
                 faction['recent_win_avg'] += player_df[i]['recent_win_pct']
-                faction['solo_medal_avg'] += player_df[i]['solo_medal']
+#                faction['solo_medal_avg'] += player_df[i]['solo_medal']
+                # Thank you python for having to do it this way btw its 10/5 = 2
+                faction['solo_medal_avg'] += int(float(str(player_df[i]['solo_medal'])[0] + str(int(str(player_df[i]['solo_medal'])[1]) * 2)))
                 faction['total_matches_avg'] += player_df[i]['matches']
                 faction['ranked_matches_avg'] += player_df[i]['ranked_pct']
                 faction['activity_level_avg'] += [j for j, k in enumerate(ACTIVITY) if k == player_df[i]['activity']][0]
@@ -613,6 +615,8 @@ def summarize_team(player_df):
                 faction[k] = round(v / faction_success, 2)
             faction['activity_level_avg'] = ACTIVITY[int(round(faction['activity_level_avg'], 0))]
             faction['impact_level_avg'] = ['Low', 'Medium', 'High'][int(round(faction['impact_level_avg'], 0))]
+            # 5/10 = 1/2
+            faction['solo_medal_avg'] = MEDALS[int(str(faction['solo_medal_avg'])[0])-1] + ' {}'.format(int(float(str(faction['solo_medal_avg'])[1:]) * 1/2))
     return [radiant, dire]
 
 
@@ -652,7 +656,7 @@ def html_output(player_df):
                                str(faction["party_percent_avg"]) + "%",
                                str(faction["support_avg"]) + "%",
                                faction["unique_heroes"]]
-            table_output += "</table></div></div><table><tr><td width = '{}%' align='center'><b>TEAM AVERAGES:</b></td><td width = '{}%' align='center'></td>".format(COLUMN_WIDTHS[0], 
+            table_output += "</table></div></div><table><tr><td width = '{}%' align='center'><b>TEAM AVERAGES:</b></td><td width = '{}%' align='center'></td>".format(COLUMN_WIDTHS[0],
                                                                          COLUMN_WIDTHS[1])
             for j, k in enumerate(faction_outputs):
                 table_output += "<td width = '{}%' align='center'>{}</td>".format(str(COLUMN_WIDTHS[j + 2]), k)
