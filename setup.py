@@ -1,6 +1,6 @@
 import sys
 from cx_Freeze import setup, Executable
-
+# Execute with 'python setup.py build'
 import os.path
 PYTHON_INSTALL_DIR = os.path.dirname(os.path.dirname(os.__file__))
 os.environ['TCL_LIBRARY'] = os.path.join(PYTHON_INSTALL_DIR, 'tcl', 'tcl8.6')
