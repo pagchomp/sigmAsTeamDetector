@@ -1,3 +1,7 @@
+"""
+This file exists only to build the EXE version of the tool. It has no use if you are just running the python script
+"""
+
 import sys
 from cx_Freeze import setup, Executable
 # Execute with 'python setup.py build'
