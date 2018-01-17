@@ -598,7 +598,7 @@ def summarize_team(player_df):
                 faction['recent_win_avg'] += player_df[i]['recent_win_pct']
 #                faction['solo_medal_avg'] += player_df[i]['solo_medal']
                 # Thank you python for having to do it this way btw its 10/5 = 2
-                faction['solo_medal_avg'] += int(float(str(player_df[i]['solo_medal'])[0] + str(int(str(player_df[i]['solo_medal'])[1]) * 2)))
+                faction['solo_medal_avg'] += int(float(str(player_df[i]['solo_medal'])[0] + str(int(str(player_df[i]['solo_medal'])[1]) / 0.6)))
                 faction['total_matches_avg'] += player_df[i]['matches']
                 faction['ranked_matches_avg'] += player_df[i]['ranked_pct']
                 faction['activity_level_avg'] += [j for j, k in enumerate(ACTIVITY) if k == player_df[i]['activity']][0]
@@ -616,13 +616,13 @@ def summarize_team(player_df):
             faction['activity_level_avg'] = ACTIVITY[int(round(faction['activity_level_avg'], 0))]
             faction['impact_level_avg'] = ['Low', 'Medium', 'High'][int(round(faction['impact_level_avg'], 0))]
             # 5/10 = 1/2
-            faction['solo_medal_avg'] = MEDALS[int(str(faction['solo_medal_avg'])[0])-1] + ' {}'.format(int(float(str(faction['solo_medal_avg'])[1:]) * 1/2))
+            faction['solo_medal_avg'] = MEDALS[int(str(faction['solo_medal_avg'])[0])-1] + ' {}'.format(int(float(str(faction['solo_medal_avg'])[1:]) * 0.6))
     return [radiant, dire]
 
 
 def html_output(player_df):
     """Outputs the data in HTML"""
-    output = "<!DOCTYPE html><html><meta charset='UTF-8'> "
+    output = "<!DOCTYPE html><meta charset='UTF-8'><header><link rel='icon' type='image/png' href='favicon.png' sizes='16x16'></header><html>"
     output += CSS
     output += "<body><title>{}</title><h1><a href = \"http://github.com/pagchomp\" class = \"title\">{}</a></h1>".format(TOOL_TITLE, TOOL_TITLE)
     output += JAVASCRIPT
